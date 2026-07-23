@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock } from "lucide-react";
-import { blogPosts } from "@/lib/data";
+import { ArrowLeft, Clock, User } from "lucide-react";
+import { blogPosts, getBlogPost } from "@/lib/blog";
+import { BlogArticle } from "@/components/blog/BlogArticle";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
+export async function generateStaticParams() {
+  return blogPosts.map((post) => ({ slug: post.slug }));
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = blogPosts.find((p) => p.slug === slug);
+  const post = getBlogPost(slug);
   return {
     title: post?.title || "Blog",
     description: post?.excerpt,
@@ -19,8 +24,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = blogPosts.find((p) => p.slug === slug);
+  const post = getBlogPost(slug);
   if (!post) notFound();
+
+  const related = blogPosts.filter((p) => p.slug !== slug && p.category === post.category).slice(0, 3);
 
   return (
     <article className="bg-white">
@@ -39,7 +46,11 @@ export default async function BlogPostPage({ params }: Props) {
           <h1 className="mt-4 font-display text-3xl font-bold text-white sm:text-4xl">
             {post.title}
           </h1>
-          <div className="mt-4 flex items-center gap-3 text-sm text-blue-100">
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-blue-100">
+            <span className="inline-flex items-center gap-1">
+              <User className="h-3.5 w-3.5" />
+              {post.author}
+            </span>
             <span>{post.date}</span>
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
@@ -51,32 +62,49 @@ export default async function BlogPostPage({ params }: Props) {
 
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <p className="text-lg leading-relaxed text-brand-slate">{post.excerpt}</p>
-        <div className="prose prose-slate mt-8 max-w-none space-y-4 text-slate-700">
-          <p>
-            At JobCareerPao, we believe career growth should feel intentional — not overwhelming.
-            This guide walks you through practical steps you can apply this week, whether you&apos;re
-            preparing for interviews, refreshing your resume, or navigating salary conversations.
+        <BlogArticle blocks={post.blocks} />
+        <div className="mt-10 rounded-2xl bg-brand-gray p-6">
+          <p className="font-display font-semibold text-brand-dark">Ready to apply?</p>
+          <p className="mt-2 text-sm text-brand-slate">
+            Browse verified jobs, fill the application form, and pay the listed fee — all from one
+            platform.
           </p>
-          <h2 className="font-display text-xl font-bold text-brand-dark pt-4">Key takeaways</h2>
-          <ul className="list-disc space-y-2 pl-5">
-            <li>Focus on outcomes and measurable impact in your applications.</li>
-            <li>Keep your profile complete — recruiters notice readiness.</li>
-            <li>Use membership boosts strategically around active hiring cycles.</li>
-            <li>Practice structured storytelling for behavioral interviews.</li>
-          </ul>
-          <p>
-            Ready to put this into action?{" "}
-            <Link href="/jobs" className="font-semibold text-brand-cyan hover:text-brand-blue">
-              Browse verified jobs
-            </Link>{" "}
-            or{" "}
-            <Link href="/auth/signup" className="font-semibold text-brand-cyan hover:text-brand-blue">
-              create your account
-            </Link>{" "}
-            and unlock your potential.
-          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/jobs"
+              className="inline-flex items-center rounded-xl bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-blue/90"
+            >
+              Browse Jobs
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="inline-flex items-center rounded-xl border border-brand-blue/20 px-5 py-2.5 text-sm font-semibold text-brand-blue hover:bg-brand-blue/5"
+            >
+              Create Account
+            </Link>
+          </div>
         </div>
       </div>
+
+      {related.length > 0 && (
+        <div className="border-t border-slate-100 bg-brand-gray py-12">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <h2 className="font-display text-lg font-bold text-brand-dark">Related articles</h2>
+            <ul className="mt-4 space-y-3">
+              {related.map((r) => (
+                <li key={r.slug}>
+                  <Link
+                    href={`/blog/${r.slug}`}
+                    className="text-sm font-medium text-brand-cyan hover:text-brand-blue"
+                  >
+                    {r.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

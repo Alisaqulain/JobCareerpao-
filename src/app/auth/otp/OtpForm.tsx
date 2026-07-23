@@ -2,20 +2,30 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AuthShell, AuthLink } from "@/components/auth/AuthShell";
+import { AuthShell, AuthLink, AuthInput } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/hooks/useApi";
+import { toast } from "sonner";
 
 export default function OtpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || "your email";
-  const plan = searchParams.get("plan") || "";
-  const redirect = searchParams.get("redirect") || "/pricing";
+  const email = searchParams.get("email") || "";
+  const name = searchParams.get("name") || "";
+  const phone = searchParams.get("phone") || "";
+  const redirectParam = searchParams.get("redirect") || "";
   const job = searchParams.get("job") || "";
+  const redirect = redirectParam.startsWith("/")
+    ? redirectParam
+    : job
+      ? `/jobs/${job}/apply`
+      : "/jobs";
   const isReset = searchParams.get("reset") === "1";
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -37,31 +47,70 @@ export default function OtpForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resendOtp = async () => {
+    try {
+      const res = await api("/api/auth/otp/send", {
+        method: "POST",
+        json: { email, purpose: isReset ? "reset" : "signup" },
+      });
+      if (!res.success) throw new Error(res.message);
+      toast.success("OTP resent");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to resend OTP");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.join("").length < 6) {
       setError("Please enter the 6-digit OTP");
       return;
     }
-    if (isReset) {
-      router.push("/auth/login");
-      return;
+
+    setLoading(true);
+    try {
+      if (isReset) {
+        const res = await api("/api/auth/reset-password", {
+          method: "POST",
+          json: { email, otp: otp.join(""), password: newPassword },
+        });
+        if (!res.success) throw new Error(res.message);
+        toast.success("Password reset successful");
+        router.push("/auth/login");
+        return;
+      }
+
+      const res = await api("/api/auth/otp/verify", {
+        method: "POST",
+        json: {
+          email,
+          otp: otp.join(""),
+          purpose: isReset ? "reset" : "signup",
+          name,
+          phone,
+        },
+      });
+
+      if (!res.success) throw new Error(res.message);
+
+      toast.success("Verified successfully!");
+      router.push(redirect);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setLoading(false);
     }
-    const params = new URLSearchParams();
-    if (plan) params.set("plan", plan);
-    if (job) params.set("job", job);
-    const dest = redirect.startsWith("/") ? redirect : "/pricing";
-    router.push(`${dest}${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
   return (
     <AuthShell
       title="OTP Verification"
-      subtitle={`Enter the 6-digit code sent to ${email}`}
+      subtitle={`Enter the 6-digit code sent to ${email || "your email"}`}
       footer={
         <>
           Didn&apos;t receive it?{" "}
-          <button type="button" className="font-semibold text-brand-cyan hover:text-brand-blue">
+          <button type="button" className="font-semibold text-brand-cyan hover:text-brand-blue" onClick={resendOtp}>
             Resend OTP
           </button>
           <br />
@@ -90,12 +139,19 @@ export default function OtpForm() {
           ))}
         </div>
         {error && <p className="text-center text-sm text-red-500">{error}</p>}
-        <Button type="submit" className="w-full" size="lg">
-          Verify & Continue
+        {isReset && (
+          <AuthInput
+            label="New Password"
+            type="password"
+            required
+            placeholder="Min. 8 characters"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+        )}
+        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          {loading ? "Verifying..." : "Verify & Continue"}
         </Button>
-        <p className="text-center text-xs text-brand-slate">
-          Demo tip: enter any 6 digits to continue
-        </p>
       </form>
     </AuthShell>
   );

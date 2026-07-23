@@ -22,12 +22,12 @@ export default function TermsPage() {
             b: "You are responsible for maintaining accurate profile information and securing your login credentials.",
           },
           {
-            h: "Memberships",
-            b: "Paid plans unlock features such as unlimited applications and resume boosts. Benefits apply for the billing period purchased.",
+            h: "Application Fees",
+            b: "Each job may require a one-time application fee. Fees are shown before you apply and are processed securely at checkout.",
           },
           {
             h: "Acceptable Use",
-            b: "Do not post false information, spam applications, or misuse recruiter tools. Violations may result in account suspension.",
+            b: "Do not post false information or spam applications. Violations may result in account suspension.",
           },
         ].map((s) => (
           <section key={s.h}>

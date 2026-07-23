@@ -4,13 +4,19 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthShell, AuthInput, AuthDivider, AuthLink } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/hooks/useApi";
+import { toast } from "sonner";
 
 export default function CandidateSignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const plan = searchParams.get("plan") || "";
-  const redirect = searchParams.get("redirect") || "/pricing";
+  const redirectParam = searchParams.get("redirect") || "";
   const job = searchParams.get("job") || "";
+  const redirect = job
+    ? `/jobs/${job}/apply`
+    : redirectParam.startsWith("/")
+      ? redirectParam
+      : "/jobs";
 
   const [form, setForm] = useState({
     name: "",
@@ -18,15 +24,37 @@ export default function CandidateSignupPage() {
     phone: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    params.set("email", form.email);
-    if (plan) params.set("plan", plan);
-    if (redirect) params.set("redirect", redirect);
-    if (job) params.set("job", job);
-    router.push(`/auth/otp?${params.toString()}`);
+    setLoading(true);
+    try {
+      const res = await api("/api/auth/otp/send", {
+        method: "POST",
+        json: {
+          email: form.email,
+          purpose: "signup",
+          name: form.name,
+          phone: form.phone,
+          password: form.password,
+        },
+      });
+      if (!res.success) throw new Error(res.message);
+
+      toast.success("OTP sent to your email");
+      const params = new URLSearchParams();
+      params.set("email", form.email);
+      params.set("name", form.name);
+      params.set("phone", form.phone);
+      params.set("redirect", redirect);
+      if (job) params.set("job", job);
+      router.push(`/auth/otp?${params.toString()}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Signup failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,10 +64,6 @@ export default function CandidateSignupPage() {
       footer={
         <>
           Already have an account? <AuthLink href="/auth/login">Login</AuthLink>
-          <br />
-          <span className="mt-2 inline-block">
-            Hiring talent? <AuthLink href="/auth/recruiter/signup">Recruiter Signup</AuthLink>
-          </span>
         </>
       }
     >
@@ -81,8 +105,8 @@ export default function CandidateSignupPage() {
           <AuthLink href="/terms">Terms</AuthLink> and{" "}
           <AuthLink href="/privacy">Privacy Policy</AuthLink>
         </label>
-        <Button type="submit" className="w-full" size="lg">
-          Create Account
+        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          {loading ? "Sending OTP..." : "Create Account"}
         </Button>
       </form>
       <AuthDivider />

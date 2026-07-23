@@ -12,10 +12,12 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { companies } from "@/lib/data";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 
 const floatItems = [
   { icon: Building2, label: "Companies", color: "bg-brand-blue", delay: 0, x: "8%", y: "18%" },
-  { icon: Users, label: "Recruiters", color: "bg-brand-cyan", delay: 0.5, x: "72%", y: "12%" },
+  { icon: Users, label: "Candidates", color: "bg-brand-cyan", delay: 0.5, x: "72%", y: "12%" },
   { icon: FileText, label: "Resumes", color: "bg-brand-orange", delay: 1, x: "78%", y: "58%" },
   { icon: Briefcase, label: "Jobs", color: "bg-brand-blue", delay: 1.5, x: "12%", y: "62%" },
   { icon: MessageSquare, label: "Interviews", color: "bg-brand-cyan", delay: 0.8, x: "55%", y: "78%" },
@@ -104,6 +106,23 @@ export function Hero() {
               <p>
                 <span className="font-semibold text-brand-blue">2L+</span> professionals hired
               </p>
+            </div>
+            <div className="mt-8 border-t border-slate-200/80 pt-6">
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-slate">
+                Trusted by top employers
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {companies.slice(0, 8).map((company) => (
+                  <CompanyLogo
+                    key={company.id}
+                    name={company.name}
+                    logoUrl={company.logoUrl}
+                    fallback={company.logo}
+                    color={company.color}
+                    size="sm"
+                  />
+                ))}
+              </div>
             </div>
           </motion.div>
         </div>

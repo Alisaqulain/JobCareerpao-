@@ -1,245 +1,212 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { Check, CreditCard, Lock, ShieldCheck } from "lucide-react";
-import { plans } from "@/lib/data";
-import { Logo } from "@/components/layout/Logo";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { CreditCard, Shield, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/utils";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
+import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
+import { api, loadRazorpay } from "@/hooks/useApi";
+import { getJobLogoProps } from "@/lib/job-utils";
+import { getApplicationDraft, clearApplicationDraft } from "@/lib/payment-utils";
+import { toast } from "sonner";
+
+interface OrderDetails {
+  orderId: string;
+  paymentId: string;
+  amount: number;
+  baseAmount: number;
+  gstAmount: number;
+  key: string;
+  jobTitle: string;
+  company: string;
+  jobId: string;
+  status: string;
+  companyLogo?: string;
+  companyColor?: string;
+}
 
 function PaymentContent() {
   const searchParams = useSearchParams();
-  const initialPlan = searchParams.get("plan") || "gold";
-  const job = searchParams.get("job") || "";
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const orderId = searchParams.get("orderId");
+  const jobId = searchParams.get("jobId");
+  const [order, setOrder] = useState<OrderDetails | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [scriptReady, setScriptReady] = useState(false);
 
-  const [selected, setSelected] = useState(initialPlan);
-  const [step, setStep] = useState<"plan" | "pay" | "success">("plan");
-  const [card, setCard] = useState({ number: "", name: "", expiry: "", cvv: "" });
-  const [processing, setProcessing] = useState(false);
-
-  const plan = plans.find((p) => p.id === selected) || plans[2];
-
-  const handlePay = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (plan.price === 0) {
-      setStep("success");
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace(`/auth/login?redirect=/payment?orderId=${orderId}&jobId=${jobId}`);
       return;
     }
-    setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
-      setStep("success");
-    }, 1600);
-  };
+    if (!orderId) {
+      router.replace("/jobs");
+      return;
+    }
+    loadRazorpay().then(setScriptReady);
+    api<OrderDetails>(`/api/payments/order/${orderId}`).then((res) => {
+      if (res.data) {
+        if (res.data.status === "paid") {
+          router.replace(`/payment/success?paymentId=${res.data.paymentId}`);
+          return;
+        }
+        setOrder(res.data);
+      } else {
+        toast.error(res.message || "Order not found");
+        router.replace("/jobs");
+      }
+    });
+  }, [status, orderId, jobId, router]);
 
-  if (step === "success") {
+  const openCheckout = useCallback(async () => {
+    if (!order || !jobId) return;
+    const draft = getApplicationDraft(jobId);
+    if (!draft) {
+      toast.error("Application data expired. Please apply again.");
+      router.push(`/jobs/${jobId}/apply`);
+      return;
+    }
+
+    setPaying(true);
+    try {
+      const loaded = await loadRazorpay();
+      if (!loaded) throw new Error("Failed to load Razorpay checkout");
+
+      const Razorpay = (window as unknown as {
+        Razorpay: new (options: Record<string, unknown>) => {
+          open: () => void;
+          on: (event: string, handler: () => void) => void;
+        };
+      }).Razorpay;
+
+      const rzp = new Razorpay({
+        key: order.key,
+        amount: Math.round(order.amount * 100),
+        currency: "INR",
+        name: "JobCareerPao",
+        description: `${order.jobTitle} — ${order.company}`,
+        order_id: order.orderId,
+        prefill: {
+          name: session?.user?.name,
+          email: session?.user?.email,
+        },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          const verifyRes = await api<{
+            payment: { _id: string };
+            application: { applicationNumber: string };
+          }>("/api/payments/verify", {
+            method: "POST",
+            json: {
+              jobId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              formAnswers: draft.formAnswers,
+              resumeUrl: draft.resumeUrl,
+            },
+          });
+
+          if (verifyRes.success) {
+            clearApplicationDraft();
+            const pid = verifyRes.data?.payment?._id || order.paymentId;
+            router.push(
+              `/payment/success?paymentId=${pid}&razorpayPaymentId=${response.razorpay_payment_id}&orderId=${response.razorpay_order_id}&amount=${order.amount}`
+            );
+          } else {
+            router.push(`/payment/failed?orderId=${order.orderId}&reason=${encodeURIComponent(verifyRes.message || "Verification failed")}`);
+          }
+        },
+        modal: {
+          ondismiss: async () => {
+            await api("/api/payments/cancelled", {
+              method: "POST",
+              json: { orderId: order.orderId },
+            });
+            router.push(`/payment/cancelled?orderId=${order.orderId}&jobId=${jobId}`);
+          },
+        },
+        theme: { color: "#0B4F8A" },
+      });
+
+      rzp.open();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Payment failed");
+    } finally {
+      setPaying(false);
+    }
+  }, [order, jobId, session, router]);
+
+  if (!order) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="glass-strong rounded-3xl p-8"
-        >
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand-blue to-brand-cyan text-white">
-            <Check className="h-8 w-8" />
-          </div>
-          <h1 className="mt-5 font-display text-2xl font-bold text-brand-dark">
-            Membership Activated!
-          </h1>
-          <p className="mt-2 text-sm text-brand-slate">
-            Your <span className="font-semibold text-brand-blue">{plan.name}</span> plan is now
-            active. You can apply to jobs successfully.
-          </p>
-          <div className="mt-8 flex flex-col gap-3">
-            <Button
-              href={job ? `/jobs` : "/jobs"}
-              size="lg"
-              variant="orange"
-            >
-              {job ? "Continue Applying" : "Browse Jobs & Apply"}
-            </Button>
-            <Button href="/" variant="outline">
-              Go to Home
-            </Button>
-          </div>
-        </motion.div>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
       </div>
     );
   }
 
+  const logoProps = getJobLogoProps({
+    company: order.company,
+    companyLogo: order.companyLogo,
+    companyColor: order.companyColor,
+  });
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col items-center text-center">
-        <Logo size="sm" showTagline />
-        <h1 className="mt-5 font-display text-3xl font-bold text-brand-dark">
-          {step === "plan" ? "Select Membership Plan" : "Secure Payment"}
-        </h1>
-        <p className="mt-2 text-sm text-brand-slate">
-          {step === "plan"
-            ? "Choose a plan to unlock applications and career tools."
-            : "Complete payment to activate your membership."}
-        </p>
-      </div>
-
-      {step === "plan" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {plans.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setSelected(p.id)}
-              className={cn(
-                "rounded-2xl border-2 p-5 text-left transition",
-                selected === p.id
-                  ? "border-brand-orange bg-orange-50/50 shadow-soft"
-                  : "border-slate-200 bg-white hover:border-brand-cyan"
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold text-brand-dark">{p.name}</h3>
-                {selected === p.id && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-orange text-white">
-                    <Check className="h-3 w-3" />
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 font-display text-2xl font-extrabold text-brand-blue">
-                {p.price === 0 ? "Free" : `₹${p.price}`}
-                {p.price > 0 && (
-                  <span className="text-sm font-normal text-brand-slate">/{p.period}</span>
-                )}
-              </p>
-              <ul className="mt-3 space-y-1.5">
-                {p.features.slice(0, 3).map((f) => (
-                  <li key={f} className="flex items-start gap-1.5 text-xs text-slate-600">
-                    <Check className="mt-0.5 h-3 w-3 shrink-0 text-brand-cyan" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {step === "plan" && (
-        <div className="mt-8 flex justify-center">
-          <Button
-            size="lg"
-            onClick={() => (plan.price === 0 ? setStep("success") : setStep("pay"))}
-          >
-            {plan.price === 0 ? "Activate Free Plan" : `Continue with ${plan.name}`}
-          </Button>
-        </div>
-      )}
-
-      {step === "pay" && (
-        <div className="mx-auto grid max-w-3xl gap-6 lg:grid-cols-5">
-          <div className="glass-strong rounded-2xl p-6 lg:col-span-2">
-            <h2 className="font-display font-semibold text-brand-dark">Order Summary</h2>
-            <div className="mt-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-brand-slate">{plan.name} Plan</span>
-                <span className="font-semibold">₹{plan.price}</span>
-              </div>
-              <div className="flex justify-between border-t border-slate-100 pt-3">
-                <span className="font-semibold text-brand-dark">Total</span>
-                <span className="font-display text-lg font-bold text-brand-blue">
-                  ₹{plan.price}
-                </span>
-              </div>
-            </div>
-            <div className="mt-6 space-y-2 text-xs text-brand-slate">
-              <p className="inline-flex items-center gap-1.5">
-                <Lock className="h-3.5 w-3.5 text-brand-cyan" />
-                256-bit SSL encrypted
-              </p>
-              <p className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-brand-cyan" />
-                Secure payment gateway
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setStep("plan")}
-              className="mt-4 text-sm font-medium text-brand-cyan hover:text-brand-blue"
-            >
-              ← Change plan
-            </button>
+    <div className="min-h-screen bg-brand-gray dark:bg-slate-950 py-10">
+      <div className="mx-auto max-w-lg px-4">
+        <div className="glass-strong rounded-2xl p-6 sm:p-8">
+          <div className="flex items-center gap-2 text-brand-cyan">
+            <Shield className="h-5 w-5" />
+            <span className="text-sm font-semibold">Secure Payment via Razorpay</span>
           </div>
 
-          <form onSubmit={handlePay} className="glass-strong rounded-2xl p-6 lg:col-span-3">
-            <div className="mb-5 flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-brand-blue" />
-              <h2 className="font-display font-semibold text-brand-dark">Card Details</h2>
+          <div className="mt-6 flex items-center gap-4">
+            <CompanyLogo {...logoProps} size="lg" />
+            <div>
+              <h1 className="font-display text-xl font-bold dark:text-white">{order.jobTitle}</h1>
+              <p className="text-sm text-brand-slate">{order.company}</p>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Card Number</label>
-                <input
-                  required
-                  placeholder="4242 4242 4242 4242"
-                  value={card.number}
-                  onChange={(e) => setCard({ ...card, number: e.target.value })}
-                  className="h-12 w-full rounded-xl border border-slate-200 px-4 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Cardholder Name</label>
-                <input
-                  required
-                  placeholder="Name on card"
-                  value={card.name}
-                  onChange={(e) => setCard({ ...card, name: e.target.value })}
-                  className="h-12 w-full rounded-xl border border-slate-200 px-4 text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Expiry</label>
-                  <input
-                    required
-                    placeholder="MM/YY"
-                    value={card.expiry}
-                    onChange={(e) => setCard({ ...card, expiry: e.target.value })}
-                    className="h-12 w-full rounded-xl border border-slate-200 px-4 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">CVV</label>
-                  <input
-                    required
-                    placeholder="123"
-                    type="password"
-                    maxLength={4}
-                    value={card.cvv}
-                    onChange={(e) => setCard({ ...card, cvv: e.target.value })}
-                    className="h-12 w-full rounded-xl border border-slate-200 px-4 text-sm"
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full" size="lg" disabled={processing}>
-                {processing ? "Processing…" : `Pay ₹${plan.price}`}
-              </Button>
-              <p className="text-center text-xs text-brand-slate">
-                Frontend demo only — no real charges are made.
-              </p>
-            </div>
-          </form>
+          </div>
+
+          <div className="mt-6">
+            <FeeBreakdown applicationFee={order.baseAmount} />
+          </div>
+
+          <div className="mt-8">
+            <Button
+              onClick={openCheckout}
+              variant="orange"
+              className="w-full"
+              size="lg"
+              disabled={paying || !scriptReady}
+            >
+              <CreditCard className="h-5 w-5" />
+              {paying ? "Opening checkout..." : `Pay ₹${order.amount.toFixed(2)}`}
+            </Button>
+            <p className="mt-3 text-center text-xs text-brand-slate">
+              UPI · Cards · Net Banking · Wallets accepted
+            </p>
+          </div>
+
+          <Button href={`/jobs/${jobId}/review`} variant="ghost" className="mt-4 w-full">
+            Back to Review
+          </Button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 export default function PaymentPage() {
   return (
-    <div className="min-h-screen bg-brand-gray">
-      <Suspense fallback={<div className="py-20 text-center">Loading payment…</div>}>
-        <PaymentContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-brand-blue" /></div>}>
+      <PaymentContent />
+    </Suspense>
   );
 }

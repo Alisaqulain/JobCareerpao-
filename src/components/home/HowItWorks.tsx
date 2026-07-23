@@ -4,16 +4,15 @@ import { motion } from "framer-motion";
 import {
   UserPlus,
   ClipboardList,
-  CreditCard,
   Search,
-  Send,
-  PhoneCall,
+  FileText,
+  CreditCard,
   ArrowDown,
 } from "lucide-react";
 import { howItWorks } from "@/lib/data";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
-const icons = [UserPlus, ClipboardList, CreditCard, Search, Send, PhoneCall];
+const icons = [UserPlus, ClipboardList, Search, FileText, CreditCard];
 
 export function HowItWorks() {
   return (
@@ -22,7 +21,7 @@ export function HowItWorks() {
         <SectionHeading
           eyebrow="Simple Process"
           title="How It Works"
-          description="Six clear steps from signup to interview calls — built for speed and clarity."
+          description="Choose a company, fill the form, pay the fee — that's the complete flow."
         />
 
         <div className="relative mx-auto mt-14 max-w-3xl">

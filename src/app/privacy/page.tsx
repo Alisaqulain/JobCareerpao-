@@ -14,11 +14,11 @@ export default function PrivacyPage() {
         },
         {
           heading: "How We Use Data",
-          body: "Your data helps us match you with opportunities, personalize recommendations, process memberships, and keep the platform secure.",
+          body: "Your data helps us match you with opportunities, process applications and fees, and keep the platform secure.",
         },
         {
           heading: "Sharing",
-          body: "We share candidate information with employers only when you apply or explicitly enable resume visibility. We never sell personal data.",
+          body: "We share your application details with the company for the job you apply to. We never sell personal data.",
         },
         {
           heading: "Your Rights",

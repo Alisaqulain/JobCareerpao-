@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Send } from "lucide-react";
 import { Logo } from "./Logo";
 import { footerLinks } from "@/lib/data";
 import { useState } from "react";
+import { toast } from "sonner";
 
 const socials = [
   {
-    href: "#",
+    href: "https://linkedin.com/company/jobcareerpao",
     label: "LinkedIn",
     icon: (
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
@@ -17,7 +19,7 @@ const socials = [
     ),
   },
   {
-    href: "#",
+    href: "https://twitter.com/jobcareerpao",
     label: "Twitter",
     icon: (
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
@@ -26,7 +28,7 @@ const socials = [
     ),
   },
   {
-    href: "#",
+    href: "https://instagram.com/jobcareerpao",
     label: "Instagram",
     icon: (
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
@@ -35,7 +37,7 @@ const socials = [
     ),
   },
   {
-    href: "#",
+    href: "https://youtube.com/@jobcareerpao",
     label: "YouTube",
     icon: (
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
@@ -46,12 +48,33 @@ const socials = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
   const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) setSubscribed(true);
+    if (!email) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      toast.success("Subscribed successfully!");
+      setEmail("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Subscription failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,6 +97,8 @@ export function Footer() {
                 <a
                   key={s.label}
                   href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={s.label}
                   className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-brand-orange hover:scale-105"
                 >
@@ -83,7 +108,19 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:col-span-5">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-5">
+            <div>
+              <h4 className="font-display text-sm font-semibold text-white">Quick Links</h4>
+              <ul className="mt-4 space-y-2.5">
+                {footerLinks.quick.map((l) => (
+                  <li key={l.href}>
+                    <Link href={l.href} className="text-sm text-blue-100/70 hover:text-white transition">
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <div>
               <h4 className="font-display text-sm font-semibold text-white">Company</h4>
               <ul className="mt-4 space-y-2.5">
@@ -108,30 +145,6 @@ export function Footer() {
                 ))}
               </ul>
             </div>
-            <div>
-              <h4 className="font-display text-sm font-semibold text-white">Candidates</h4>
-              <ul className="mt-4 space-y-2.5">
-                {footerLinks.candidates.map((l) => (
-                  <li key={l.href}>
-                    <Link href={l.href} className="text-sm text-blue-100/70 hover:text-white transition">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-display text-sm font-semibold text-white">Recruiters</h4>
-              <ul className="mt-4 space-y-2.5">
-                {footerLinks.recruiters.map((l) => (
-                  <li key={l.href}>
-                    <Link href={l.href} className="text-sm text-blue-100/70 hover:text-white transition">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
 
           <div className="lg:col-span-3">
@@ -139,29 +152,27 @@ export function Footer() {
             <p className="mt-2 text-sm text-blue-100/70">
               Get career tips and job alerts delivered weekly.
             </p>
-            {subscribed ? (
-              <p className="mt-4 rounded-xl bg-white/10 px-4 py-3 text-sm text-brand-cyan">
-                You&apos;re subscribed! Check your inbox.
-              </p>
-            ) : (
-              <form onSubmit={handleSubscribe} className="mt-4 flex gap-2">
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Your email"
-                  className="flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm text-white placeholder:text-blue-100/50 focus:border-brand-cyan focus:shadow-none"
-                />
-                <button
-                  type="submit"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange text-white transition hover:bg-orange-500"
-                  aria-label="Subscribe"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </form>
-            )}
+            <form onSubmit={handleSubscribe} className="mt-4 flex gap-2">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Your email"
+                className="flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm text-white placeholder:text-blue-100/50 focus:border-brand-cyan focus:shadow-none"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange text-white transition hover:bg-orange-500 disabled:opacity-50"
+                aria-label="Subscribe"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+            <p className="mt-4 text-xs text-blue-100/60">
+              support@jobcareerpao.com · +91 98765 43210
+            </p>
           </div>
         </div>
 

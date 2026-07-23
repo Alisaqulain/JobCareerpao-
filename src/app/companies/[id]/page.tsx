@@ -5,6 +5,7 @@ import { Star, MapPin, Briefcase, ArrowLeft } from "lucide-react";
 import { companies, jobs } from "@/lib/data";
 import { formatSalary } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -39,12 +40,13 @@ export default async function CompanyDetailPage({ params }: Props) {
           </Link>
           <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <div
-                className="flex h-16 w-16 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-soft"
-                style={{ background: company.color }}
-              >
-                {company.logo}
-              </div>
+              <CompanyLogo
+                name={company.name}
+                logoUrl={company.logoUrl}
+                fallback={company.logo}
+                color={company.color}
+                size="xl"
+              />
               <div>
                 <h1 className="font-display text-3xl font-bold text-brand-dark">
                   {company.name}
@@ -66,7 +68,7 @@ export default async function CompanyDetailPage({ params }: Props) {
                 </div>
               </div>
             </div>
-            <Button href="/auth/signup">Follow & Apply</Button>
+            <Button href="/jobs">Browse Jobs</Button>
           </div>
           <p className="mt-6 max-w-3xl text-brand-slate">{company.description}</p>
         </div>
@@ -88,7 +90,7 @@ export default async function CompanyDetailPage({ params }: Props) {
                     {job.experience}
                   </p>
                 </div>
-                <Button href={`/auth/signup?redirect=/payment&job=${job.id}`} size="sm" variant="orange">
+                <Button href={`/jobs/${job.id}`} size="sm" variant="orange">
                   Apply
                 </Button>
               </div>

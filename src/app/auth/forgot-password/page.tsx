@@ -4,16 +4,30 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthShell, AuthInput, AuthLink } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/hooks/useApi";
+import { toast } from "sonner";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
-    setTimeout(() => router.push(`/auth/otp?email=${encodeURIComponent(email)}&reset=1`), 1200);
+    setLoading(true);
+    try {
+      const res = await api("/api/auth/otp/send", {
+        method: "POST",
+        json: { email, purpose: "reset" },
+      });
+      if (!res.success) throw new Error(res.message);
+      toast.success("OTP sent");
+      router.push(`/auth/otp?email=${encodeURIComponent(email)}&reset=1`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,25 +40,19 @@ export default function ForgotPasswordPage() {
         </>
       }
     >
-      {sent ? (
-        <p className="rounded-xl bg-brand-cyan/10 px-4 py-3 text-center text-sm text-brand-blue">
-          OTP sent to {email}. Redirecting…
-        </p>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <AuthInput
-            label="Email"
-            type="email"
-            required
-            placeholder="you@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Button type="submit" className="w-full" size="lg">
-            Send OTP
-          </Button>
-        </form>
-      )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <AuthInput
+          label="Email"
+          type="email"
+          required
+          placeholder="you@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          {loading ? "Sending..." : "Send OTP"}
+        </Button>
+      </form>
     </AuthShell>
   );
 }

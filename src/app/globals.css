@@ -12,6 +12,14 @@
   --foreground: #0f172a;
 }
 
+.dark {
+  --brand-gray: #0f172a;
+  --brand-dark: #f1f5f9;
+  --brand-slate: #94a3b8;
+  --background: #020617;
+  --foreground: #f1f5f9;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -65,12 +73,22 @@ h6 {
   box-shadow: var(--shadow-soft);
 }
 
+.dark .glass {
+  background: rgb(15 23 42 / 0.72);
+  border: 1px solid rgb(51 65 85 / 0.6);
+}
+
 .glass-strong {
   background: rgb(255 255 255 / 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgb(255 255 255 / 0.7);
   box-shadow: var(--shadow-card);
+}
+
+.dark .glass-strong {
+  background: rgb(15 23 42 / 0.9);
+  border: 1px solid rgb(51 65 85 / 0.7);
 }
 
 .gradient-text {

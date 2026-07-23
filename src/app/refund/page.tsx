@@ -15,7 +15,7 @@ export default function RefundPage() {
         {[
           {
             h: "Eligibility",
-            b: "Refund requests for paid memberships must be submitted within 7 days of purchase if premium features have not been substantially used.",
+            b: "Refund requests for application fees may be submitted within 7 days if your application was not processed. Contact support with your payment reference.",
           },
           {
             h: "Process",

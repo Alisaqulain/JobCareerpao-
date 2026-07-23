@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      { protocol: "https", hostname: "logo.clearbit.com" },
+      { protocol: "https", hostname: "img.logo.dev" },
+      { protocol: "https", hostname: "res.cloudinary.com" },
+    ],
   },
 };
 
