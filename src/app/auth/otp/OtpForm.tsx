@@ -94,8 +94,7 @@ export default function OtpForm() {
       if (!res.success) throw new Error(res.message);
 
       toast.success("Verified successfully!");
-      router.push(redirect);
-      router.refresh();
+      window.location.href = redirect;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {

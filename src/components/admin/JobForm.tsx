@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -10,6 +9,7 @@ import { Plus, Copy, Power, Trash2, Archive } from "lucide-react";
 import Link from "next/link";
 import type { DynamicField } from "@/types";
 import { CompanyPicker } from "@/components/admin/CompanyPicker";
+import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
 
 interface JobItem {
   _id: string;
@@ -55,7 +55,7 @@ export function JobForm({
     location: String(initial?.location || ""),
     jobType: String(initial?.jobType || "Full-time"),
     mode: String(initial?.mode || "Hybrid"),
-    applicationFee: Number(initial?.applicationFee || 0),
+    applicationFee: initial?.applicationFee ? String(initial.applicationFee) : "",
     lastDate: initial?.lastDate
       ? new Date(String(initial.lastDate)).toISOString().slice(0, 10)
       : "",
@@ -85,6 +85,37 @@ export function JobForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (form.title.trim().length < 3) {
+      toast.error("Job title must be at least 3 characters");
+      return;
+    }
+    if (form.description.trim().length < 10) {
+      toast.error("Description must be at least 10 characters");
+      return;
+    }
+    if (!form.companyId) {
+      toast.error("Please select a company");
+      return;
+    }
+    if (!form.skills.split(",").map((s) => s.trim()).filter(Boolean).length) {
+      toast.error("Add at least one skill");
+      return;
+    }
+    const applicationFee = Number(form.applicationFee) || 0;
+    if (applicationFee < 0) {
+      toast.error("Application fee cannot be negative");
+      return;
+    }
+    if (form.salaryMin <= 0 || form.salaryMax <= 0) {
+      toast.error("Enter valid annual salary amounts in rupees");
+      return;
+    }
+    if (form.salaryMax < form.salaryMin) {
+      toast.error("Maximum salary must be greater than or equal to minimum salary");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -98,7 +129,7 @@ export function JobForm({
         location: form.location,
         jobType: form.jobType,
         mode: form.mode,
-        applicationFee: form.applicationFee,
+        applicationFee,
         lastDate: form.lastDate,
         status: form.status,
         requiredDocuments: form.requiredDocuments
@@ -132,8 +163,8 @@ export function JobForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium">Title</label>
-          <input className={inputClass} required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <label className="mb-1 block text-sm font-medium">Title * (min 3 characters)</label>
+          <input className={inputClass} required minLength={3} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
         </div>
         <div className="md:col-span-2">
           <CompanyPicker
@@ -141,18 +172,65 @@ export function JobForm({
             onCompanyIdChange={(id) => setForm({ ...form, companyId: id })}
           />
         </div>
+
+        <div className="md:col-span-2 rounded-2xl border-2 border-brand-orange/30 bg-brand-orange/5 p-5">
+          <h3 className="font-display text-lg font-semibold text-brand-dark">
+            Application Fee (Payment)
+          </h3>
+          <p className="mt-1 text-sm text-brand-slate">
+            Amount candidates pay via Razorpay when they apply for this job. Enter 0 for free applications.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-brand-dark">
+                Application Fee (₹) *
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className={`${inputClass} border-brand-orange/40 text-lg font-semibold`}
+                required
+                placeholder="e.g. 499"
+                value={form.applicationFee}
+                onChange={(e) => setForm({ ...form, applicationFee: e.target.value })}
+              />
+            </div>
+            <FeeBreakdown applicationFee={Number(form.applicationFee) || 0} />
+          </div>
+        </div>
+
         <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium">Description</label>
-          <textarea className={`${inputClass} min-h-[120px] py-2`} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <label className="mb-1 block text-sm font-medium">Description * (min 10 characters)</label>
+          <textarea className={`${inputClass} min-h-[120px] py-2`} required minLength={10} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Salary Min (₹)</label>
-          <input type="number" className={inputClass} required value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: Number(e.target.value) })} />
+          <label className="mb-1 block text-sm font-medium">Salary Min (₹ / year)</label>
+          <input
+            type="number"
+            className={inputClass}
+            required
+            min={1}
+            placeholder="e.g. 300000 for ₹3 LPA"
+            value={form.salaryMin || ""}
+            onChange={(e) => setForm({ ...form, salaryMin: Number(e.target.value) })}
+          />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Salary Max (₹)</label>
-          <input type="number" className={inputClass} required value={form.salaryMax} onChange={(e) => setForm({ ...form, salaryMax: Number(e.target.value) })} />
+          <label className="mb-1 block text-sm font-medium">Salary Max (₹ / year)</label>
+          <input
+            type="number"
+            className={inputClass}
+            required
+            min={1}
+            placeholder="e.g. 500000 for ₹5 LPA"
+            value={form.salaryMax || ""}
+            onChange={(e) => setForm({ ...form, salaryMax: Number(e.target.value) })}
+          />
         </div>
+        <p className="md:col-span-2 text-xs text-brand-slate">
+          Enter full annual salary in rupees. Example: 300000 displays as ₹3 LPA, 50000 as ₹50K.
+        </p>
         <div>
           <label className="mb-1 block text-sm font-medium">Experience</label>
           <input className={inputClass} required value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} />
@@ -184,10 +262,6 @@ export function JobForm({
               <option key={t}>{t}</option>
             ))}
           </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Application Fee (₹)</label>
-          <input type="number" className={inputClass} required value={form.applicationFee} onChange={(e) => setForm({ ...form, applicationFee: Number(e.target.value) })} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Last Date</label>
@@ -300,11 +374,8 @@ export function AdminJobsPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-gray">
-      <AdminSidebar />
-      <main className="lg:pl-64">
-        <div className="p-6 pt-16 lg:p-8">
-          <div className="flex items-center justify-between">
+    <>
+      <div className="flex items-center justify-between">
             <div>
               <h1 className="font-display text-2xl font-bold text-brand-dark">Job Management</h1>
               <p className="text-sm text-brand-slate">Create, edit, and manage job postings</p>
@@ -359,8 +430,6 @@ export function AdminJobsPageContent() {
               </tbody>
             </table>
           </div>
-        </div>
-      </main>
-    </div>
+    </>
   );
 }

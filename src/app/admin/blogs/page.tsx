@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -51,11 +50,8 @@ export default function AdminBlogsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-gray">
-      <AdminSidebar />
-      <main className="lg:pl-64">
-        <div className="p-6 pt-16 lg:p-8">
-          <div className="flex items-center justify-between">
+    <>
+      <div className="flex items-center justify-between">
             <div>
               <h1 className="font-display text-2xl font-bold text-brand-dark">Blog Management</h1>
               <p className="text-sm text-brand-slate">Create, edit, publish and feature blog posts</p>
@@ -102,8 +98,6 @@ export default function AdminBlogsPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      </main>
-    </div>
+    </>
   );
 }

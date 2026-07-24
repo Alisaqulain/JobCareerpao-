@@ -2,11 +2,9 @@ import { NextRequest } from "next/server";
 import { signIn } from "@/lib/auth/config";
 import { successResponse, errorResponse } from "@/lib/utils/api-response";
 import { adminLoginSchema } from "@/lib/validations";
-import { serializeAdmin } from "@/lib/services/auth.service";
+import { loginAdmin, serializeAdmin } from "@/lib/services/auth.service";
 import { parseJsonBody } from "@/lib/auth/helpers";
 import { validateCsrfOrigin } from "@/lib/utils/crypto";
-import { connectDB } from "@/lib/db/mongoose";
-import { Admin } from "@/models/Admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,21 +18,25 @@ export async function POST(request: NextRequest) {
       return errorResponse(parsed.error.issues[0]?.message || "Validation failed", 400);
     }
 
-    const result = await signIn("admin-credentials", {
-      email: parsed.data.email,
-      password: parsed.data.password,
+    let admin;
+    try {
+      admin = await loginAdmin(parsed.data.email, parsed.data.password);
+    } catch {
+      return errorResponse("Invalid admin email or password", 401);
+    }
+
+    const serialized = serializeAdmin(admin);
+
+    await signIn("otp-verified", {
+      id: serialized.id,
+      email: serialized.email,
+      name: serialized.name,
+      role: serialized.role,
+      profileComplete: "true",
       redirect: false,
     });
 
-    if (!result || (typeof result === "object" && "error" in result && result.error)) {
-      return errorResponse("Invalid admin credentials", 401);
-    }
-
-    await connectDB();
-    const admin = await Admin.findOne({ email: parsed.data.email.toLowerCase() });
-    if (!admin) return errorResponse("Admin not found", 404);
-
-    return successResponse(serializeAdmin(admin), "Admin login successful");
+    return successResponse(serialized, "Admin login successful");
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : "Admin login failed", 400);
   }

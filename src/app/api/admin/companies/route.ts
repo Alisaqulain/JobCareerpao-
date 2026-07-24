@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { successResponse, errorResponse } from "@/lib/utils/api-response";
 import { requireAdmin, parseJsonBody } from "@/lib/auth/helpers";
-import { companySchema, paginationSchema } from "@/lib/validations";
+import { companySchema, paginationSchema, formatZodError } from "@/lib/validations";
 import {
   listCompanies,
   createCompany,
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request);
     const parsed = companySchema.safeParse(body);
     if (!parsed.success) {
-      return errorResponse(parsed.error.issues[0]?.message || "Validation failed", 400);
+      return errorResponse(formatZodError(parsed.error), 400);
     }
 
     const company = await createCompany(parsed.data as unknown as Record<string, unknown>);
@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest) {
 
     const parsed = companySchema.partial().safeParse(body);
     if (!parsed.success) {
-      return errorResponse(parsed.error.issues[0]?.message || "Validation failed", 400);
+      return errorResponse(formatZodError(parsed.error), 400);
     }
 
     const company = await updateCompany(companyId, parsed.data as Record<string, unknown>);

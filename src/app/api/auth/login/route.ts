@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth/config";
 import { successResponse, errorResponse } from "@/lib/utils/api-response";
 import { loginSchema, adminLoginSchema } from "@/lib/validations";
@@ -20,14 +21,17 @@ export async function POST(request: NextRequest) {
       return errorResponse(parsed.error.issues[0]?.message || "Validation failed", 400);
     }
 
-    const result = await signIn("user-credentials", {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      redirect: false,
-    });
-
-    if (!result || (typeof result === "object" && "error" in result && result.error)) {
-      return errorResponse("Invalid email or password", 401);
+    try {
+      await signIn("user-credentials", {
+        email: parsed.data.email,
+        password: parsed.data.password,
+        redirect: false,
+      });
+    } catch (error) {
+      if (error instanceof AuthError && error.type === "CredentialsSignin") {
+        return errorResponse("Invalid email or password", 401);
+      }
+      throw error;
     }
 
     await connectDB();

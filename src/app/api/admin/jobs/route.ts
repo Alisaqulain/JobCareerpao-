@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { successResponse, errorResponse } from "@/lib/utils/api-response";
 import { requireAdmin, parseJsonBody } from "@/lib/auth/helpers";
-import { createJobBodySchema, paginationSchema, updateJobSchema } from "@/lib/validations";
+import { createJobBodySchema, paginationSchema, updateJobSchema, formatZodError } from "@/lib/validations";
 import {
   listJobs,
   createJob,
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request);
     const parsed = createJobBodySchema.safeParse(body);
     if (!parsed.success) {
-      return errorResponse(parsed.error.issues[0]?.message || "Validation failed", 400);
+      return errorResponse(formatZodError(parsed.error), 400);
     }
 
     const job = await createJob(parsed.data as unknown as Record<string, unknown>);
@@ -97,7 +97,7 @@ export async function PATCH(request: NextRequest) {
 
     const parsed = updateJobSchema.safeParse(body);
     if (!parsed.success) {
-      return errorResponse(parsed.error.issues[0]?.message || "Validation failed", 400);
+      return errorResponse(formatZodError(parsed.error), 400);
     }
 
     const job = await updateJob(jobId, parsed.data as unknown as Record<string, unknown>);

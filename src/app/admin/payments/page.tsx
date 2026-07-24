@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { api } from "@/hooks/useApi";
 import { Download, Search } from "lucide-react";
 
@@ -40,11 +39,8 @@ export default function AdminPaymentsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-brand-gray">
-      <AdminSidebar />
-      <main className="lg:pl-64">
-        <div className="p-6 pt-16 lg:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="font-display text-2xl font-bold text-brand-dark">Payments</h1>
               <p className="text-sm text-brand-slate">All Razorpay transactions</p>
@@ -130,8 +126,6 @@ export default function AdminPaymentsPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      </main>
-    </div>
+    </>
   );
 }

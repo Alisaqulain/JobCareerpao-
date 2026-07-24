@@ -1,29 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { signIn, signOut } from "next-auth/react";
 import { AuthShell, AuthInput } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/Button";
-import { api } from "@/hooks/useApi";
 import { toast } from "sonner";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({
+    email: "admin@jobcareerpao.com",
+    password: "",
+  });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api("/api/auth/admin/login", {
-        method: "POST",
-        json: form,
+      await signOut({ redirect: false });
+
+      const result = await signIn("admin-credentials", {
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        redirect: false,
       });
-      if (!res.success) throw new Error(res.message);
+
+      if (result?.error) {
+        throw new Error("Invalid admin email or password");
+      }
+
       toast.success("Welcome back, Admin!");
-      router.push("/admin");
-      router.refresh();
+      window.location.href = "/admin";
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {

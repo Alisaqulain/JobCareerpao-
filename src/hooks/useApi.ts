@@ -20,7 +20,7 @@ export async function api<T = unknown>(
     body = JSON.stringify(options.json);
   }
 
-  const res = await fetch(url, { ...options, headers, body });
+  const res = await fetch(url, { ...options, headers, body, credentials: "include" });
   const contentType = res.headers.get("content-type");
 
   if (contentType?.includes("application/json")) {

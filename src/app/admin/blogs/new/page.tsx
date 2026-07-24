@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -83,11 +82,8 @@ export default function NewBlogPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-gray">
-      <AdminSidebar />
-      <main className="lg:pl-64">
-        <div className="mx-auto max-w-3xl p-6 pt-16 lg:p-8">
-          <h1 className="font-display text-2xl font-bold text-brand-dark">Create Blog Post</h1>
+    <div className="mx-auto max-w-3xl">
+      <h1 className="font-display text-2xl font-bold text-brand-dark">Create Blog Post</h1>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <input className={inputClass} placeholder="Title *" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <input className={inputClass} placeholder="Slug (optional)" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
@@ -119,8 +115,6 @@ export default function NewBlogPage() {
             </div>
             <Button type="submit" disabled={loading}>{loading ? "Saving..." : "Create Blog"}</Button>
           </form>
-        </div>
-      </main>
     </div>
   );
 }

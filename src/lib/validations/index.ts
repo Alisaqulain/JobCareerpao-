@@ -1,5 +1,22 @@
 import { z } from "zod";
+import type { ZodError } from "zod";
 import { JOB_TYPES, JOB_STATUSES, APPLICATION_STATUSES } from "@/lib/constants";
+
+export function formatZodError(error: ZodError): string {
+  return error.issues[0]?.message || "Please check your input and try again.";
+}
+
+function emptyToUndefined(val: unknown) {
+  if (val === "" || val === null || val === undefined) return undefined;
+  return val;
+}
+
+const optionalUrl = z.preprocess(
+  emptyToUndefined,
+  z.string().url().optional()
+);
+
+const optionalString = z.preprocess(emptyToUndefined, z.string().optional());
 
 export const dynamicFieldSchema = z.object({
   id: z.string().min(1),
@@ -99,19 +116,19 @@ export const profileUpdateSchema = z.object({
 });
 
 export const createJobSchema = z.object({
-  title: z.string().min(3).max(200),
-  company: z.string().min(2).max(200).optional(),
+  title: z.string().min(3, "Job title must be at least 3 characters").max(200),
+  company: z.string().min(2, "Company name must be at least 2 characters").max(200).optional(),
   companyId: z.string().optional(),
-  description: z.string().min(10),
+  description: z.string().min(10, "Description must be at least 10 characters"),
   salary: z.object({
     min: z.number().min(0),
     max: z.number().min(0),
     currency: z.string().default("INR"),
   }),
-  experience: z.string().min(1).max(100),
-  qualification: z.string().min(1).max(500),
-  skills: z.array(z.string()).min(1),
-  location: z.string().min(1).max(200),
+  experience: z.string().min(1, "Experience is required").max(100),
+  qualification: z.string().min(1, "Qualification is required").max(500),
+  skills: z.array(z.string()).min(1, "Add at least one skill"),
+  location: z.string().min(1, "Location is required").max(200),
   jobType: z.enum(JOB_TYPES as unknown as [string, ...string[]]),
   mode: z.enum(["Remote", "Hybrid", "On-site"]).default("Hybrid"),
   applicationFee: z.number().min(0),
@@ -127,21 +144,20 @@ export const createJobBodySchema = createJobSchema.refine((d) => d.companyId || 
 
 export const companySchema = z.object({
   name: z.string().min(2).max(200),
-  logoUrl: z.string().url().optional(),
-  logoPublicId: z.string().optional(),
-  website: z.string().url().optional().or(z.literal("")),
+  logoUrl: optionalUrl,
+  logoPublicId: optionalString,
   industry: z.string().min(2).max(100),
   description: z.string().min(10).max(2000),
   headquarters: z.string().min(2).max(200),
-  founded: z.string().max(20).optional(),
-  employeeCount: z.string().max(50).optional(),
+  founded: optionalString,
+  employeeCount: z.preprocess(emptyToUndefined, z.string().max(50).optional()),
   color: z.string().max(20).optional(),
   isActive: z.boolean().optional(),
 });
 
 export const blogSchema = z.object({
-  title: z.string().min(3).max(200),
-  slug: z.string().min(3).max(200).optional(),
+  title: z.string().min(3, "Blog title must be at least 3 characters").max(200),
+  slug: z.string().min(3, "Slug must be at least 3 characters").max(200).optional(),
   coverImage: z.string().url().optional(),
   coverImagePublicId: z.string().optional(),
   category: z.string().min(2).max(100),
@@ -160,11 +176,11 @@ export const blogSchema = z.object({
 });
 
 export const contactSchema = z.object({
-  name: z.string().min(2).max(100),
-  email: z.string().email(),
+  name: z.string().min(2, "Name must be at least 2 characters").max(100),
+  email: z.string().email("Enter a valid email address"),
   phone: z.string().max(15).optional(),
-  subject: z.string().min(3).max(200),
-  message: z.string().min(10).max(5000),
+  subject: z.string().min(3, "Subject must be at least 3 characters").max(200),
+  message: z.string().min(10, "Message must be at least 10 characters").max(5000),
 });
 
 export const newsletterSchema = z.object({

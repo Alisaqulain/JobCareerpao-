@@ -4,6 +4,10 @@ import type { NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/admin/login") {
+    return NextResponse.next();
+  }
+
   const protectedPaths =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/profile") ||
@@ -21,7 +25,9 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     const loginUrl = pathname.startsWith("/admin") ? "/admin/login" : "/auth/login";
     const url = new URL(loginUrl, request.url);
-    url.searchParams.set("redirect", pathname + request.nextUrl.search);
+    if (pathname !== loginUrl) {
+      url.searchParams.set("redirect", pathname);
+    }
     return NextResponse.redirect(url);
   }
 

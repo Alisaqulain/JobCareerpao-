@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { signIn, signOut } from "next-auth/react";
 import { AuthShell, AuthInput, AuthLink } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/Button";
-import { api } from "@/hooks/useApi";
 import { toast } from "sonner";
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/jobs";
   const [form, setForm] = useState({ email: "", password: "" });
@@ -18,14 +17,20 @@ export default function LoginForm() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api("/api/auth/login", {
-        method: "POST",
-        json: form,
+      await signOut({ redirect: false });
+
+      const result = await signIn("user-credentials", {
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        redirect: false,
       });
-      if (!res.success) throw new Error(res.message);
+
+      if (result?.error) {
+        throw new Error("Invalid email or password");
+      }
+
       toast.success("Welcome back!");
-      router.push(redirect);
-      router.refresh();
+      window.location.href = redirect;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {

@@ -1,7 +1,11 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { logger } from "@/lib/utils/logger";
 
+const OTP_GMAIL = "jobcareerpao@gmail.com";
+
 let resend: Resend | null = null;
+let gmailTransporter: nodemailer.Transporter | null = null;
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) {
@@ -14,7 +18,46 @@ function getResend() {
 }
 
 const fromEmail = () =>
-  process.env.EMAIL_FROM || "JobCareerPao <noreply@jobcareerpao.com>";
+  process.env.EMAIL_FROM || `JobCareerPao <${OTP_GMAIL}>`;
+
+function getOtpFromAddress() {
+  const user = process.env.GMAIL_USER || OTP_GMAIL;
+  return process.env.EMAIL_FROM || `JobCareerPao <${user}>`;
+}
+
+function getGmailTransporter() {
+  const user = process.env.GMAIL_USER || OTP_GMAIL;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!pass) {
+    throw new Error(
+      "GMAIL_APP_PASSWORD is not configured. Create a Google App Password for jobcareerpao@gmail.com"
+    );
+  }
+  if (!gmailTransporter) {
+    gmailTransporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    });
+  }
+  return gmailTransporter;
+}
+
+async function sendOtpViaGmail(to: string, subject: string, html: string) {
+  try {
+    const transporter = getGmailTransporter();
+    const result = await transporter.sendMail({
+      from: getOtpFromAddress(),
+      to,
+      subject,
+      html,
+    });
+    logger.info("OTP email sent via Gmail", { to, subject, messageId: result.messageId });
+    return result;
+  } catch (error) {
+    logger.error("Gmail OTP send failed", { to, subject, error: String(error) });
+    throw error;
+  }
+}
 
 async function sendEmail(to: string, subject: string, html: string) {
   try {
@@ -51,7 +94,7 @@ export async function sendOtpEmail(email: string, otp: string, purpose: string) 
     </div>
   `;
 
-  return sendEmail(email, `Your JobCareerPao OTP: ${otp}`, html);
+  return sendOtpViaGmail(email, `Your JobCareerPao OTP: ${otp}`, html);
 }
 
 export async function sendApplicationReceivedEmail(

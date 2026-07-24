@@ -1,17 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminChart, StatCard } from "@/components/admin/AdminChart";
 import { api } from "@/hooks/useApi";
 import type { DashboardStats } from "@/types";
+import { toast } from "sonner";
+
+const EMPTY_STATS: DashboardStats = {
+  totalJobs: 0,
+  activeJobs: 0,
+  inactiveJobs: 0,
+  totalUsers: 0,
+  totalApplications: 0,
+  todayApplications: 0,
+  revenue: 0,
+  pendingApplications: 0,
+  selectedApplications: 0,
+  rejectedApplications: 0,
+  totalCompanies: 0,
+  totalBlogs: 0,
+  publishedBlogs: 0,
+};
 
 export default function AdminDashboardPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [charts, setCharts] = useState<{
     applications: Array<{ label: string; value: number }>;
     revenue: Array<{ label: string; value: number }>;
@@ -19,43 +31,37 @@ export default function AdminDashboardPage() {
     jobs: Array<{ label: string; value: number }>;
     statusBreakdown: Array<{ label: string; value: number }>;
   } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/admin/login");
-      return;
-    }
-    if (status === "authenticated" && session?.user?.role !== "admin") {
-      router.replace("/");
-      return;
-    }
-    if (status === "authenticated") {
-      Promise.all([
-        api<DashboardStats>("/api/admin/dashboard"),
-        api<typeof charts>("/api/admin/dashboard?type=charts"),
-      ]).then(([statsRes, chartsRes]) => {
-        if (statsRes.data) setStats(statsRes.data);
-        if (chartsRes.data) setCharts(chartsRes.data);
-      });
-    }
-  }, [status, session, router]);
-
-  if (status === "loading" || !stats) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-brand-gray">
-        <p className="text-brand-slate">Loading dashboard...</p>
-      </div>
-    );
-  }
+    Promise.all([
+      api<DashboardStats>("/api/admin/dashboard"),
+      api<typeof charts>("/api/admin/dashboard?type=charts"),
+    ])
+      .then(([statsRes, chartsRes]) => {
+        if (statsRes.success && statsRes.data) {
+          setStats(statsRes.data);
+        } else if (statsRes.message) {
+          toast.error(statsRes.message);
+        }
+        if (chartsRes.success && chartsRes.data) {
+          setCharts(chartsRes.data);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div className="min-h-screen bg-brand-gray">
-      <AdminSidebar />
-      <main className="lg:pl-64">
-        <div className="p-6 pt-16 lg:pt-6 lg:p-8">
-          <h1 className="font-display text-2xl font-bold text-brand-dark">Dashboard</h1>
-          <p className="text-sm text-brand-slate">Overview of your job portal</p>
+    <>
+      <h1 className="font-display text-2xl font-bold text-brand-dark">Dashboard</h1>
+      <p className="text-sm text-brand-slate">
+        Overview — jobs, applicants, payments, and users
+      </p>
 
+      {loading ? (
+        <p className="mt-8 text-brand-slate">Loading stats...</p>
+      ) : (
+        <>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Total Jobs" value={stats.totalJobs} />
             <StatCard label="Active Jobs" value={stats.activeJobs} accent="cyan" />
@@ -77,8 +83,8 @@ export default function AdminDashboardPage() {
               <AdminChart data={charts.statusBreakdown} title="Application Status" type="pie" />
             </div>
           )}
-        </div>
-      </main>
-    </div>
+        </>
+      )}
+    </>
   );
 }

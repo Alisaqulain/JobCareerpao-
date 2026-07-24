@@ -106,14 +106,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${poppins.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${poppins.variable} h-full antialiased light`}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "document.documentElement.classList.remove('dark');try{localStorage.removeItem('theme')}catch(e){}",
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-white dark:bg-slate-950 text-brand-dark dark:text-slate-100 font-sans transition-colors">
+      <body className="min-h-full flex flex-col bg-white text-brand-dark font-sans">
         <Providers>
           <LoadingScreen />
           <Navbar />

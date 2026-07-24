@@ -1,17 +1,14 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth/config";
+"use client";
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const session = await auth();
-  const isLoginPage = false;
+import { usePathname } from "next/navigation";
+import { AdminShell } from "@/components/admin/AdminShell";
 
-  if (!session?.user && !isLoginPage) {
-    // Allow login page through separate route group
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  return <AdminShell>{children}</AdminShell>;
 }
