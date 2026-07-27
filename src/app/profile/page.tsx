@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -238,6 +240,7 @@ export default function ProfilePage() {
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Receipt</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,14 +250,31 @@ export default function ProfilePage() {
                     <tr key={String(p._id)} className="border-t border-slate-100">
                       <td className="px-4 py-3">{job?.title}</td>
                       <td className="px-4 py-3">₹{String(p.amount)}</td>
-                      <td className="px-4 py-3">{String(p.status)}</td>
+                      <td className="px-4 py-3 capitalize">{String(p.status)}</td>
                       <td className="px-4 py-3">{new Date(String(p.createdAt)).toLocaleDateString("en-IN")}</td>
+                      <td className="px-4 py-3">
+                        {String(p.status) === "paid" ? (
+                          <Link
+                            href={`/payment/receipt/${String(p._id)}`}
+                            className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+                          >
+                            <Download className="h-3.5 w-3.5" /> View
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          {payments.length === 0 && (
+            <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-white py-12 text-center text-brand-slate">
+              No payments yet.
+            </p>
+          )}
           <Button href="/profile/payments" variant="outline" className="mt-4">
             View full payment history →
           </Button>

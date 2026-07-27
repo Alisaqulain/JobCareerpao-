@@ -9,7 +9,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/hooks/useApi";
 
-interface ApiBlog {
+export interface ApiBlog {
   _id: string;
   slug: string;
   title: string;
@@ -21,10 +21,12 @@ interface ApiBlog {
   coverImage?: string;
 }
 
-export function BlogSection() {
-  const [posts, setPosts] = useState<ApiBlog[]>([]);
+export function BlogSection({ initialPosts }: { initialPosts?: ApiBlog[] }) {
+  const [posts, setPosts] = useState<ApiBlog[]>(initialPosts || []);
 
   useEffect(() => {
+    if (initialPosts?.length) return;
+
     api<ApiBlog[]>("/api/blogs?limit=3&featured=true")
       .then((res) => {
         if (res.data?.length) {
@@ -48,7 +50,7 @@ export function BlogSection() {
           });
         }
       });
-  }, []);
+  }, [initialPosts]);
 
   if (!posts.length) return null;
 

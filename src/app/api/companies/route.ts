@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       order: query.order,
     });
 
-    return successResponse(companies, undefined, 200, pagination);
+    return successResponse(companies, undefined, 200, pagination, 60);
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : "Failed to fetch companies", 500);
   }

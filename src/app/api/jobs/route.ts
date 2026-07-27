@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       admin: false,
     });
 
-    return successResponse(jobs, undefined, 200, pagination);
+    return successResponse(jobs, undefined, 200, pagination, 60);
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : "Failed to fetch jobs", 500);
   }

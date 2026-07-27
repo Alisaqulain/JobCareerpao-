@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
   const protectedPaths =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/profile") ||
+    pathname.startsWith("/payment/receipt") ||
     (pathname.startsWith("/jobs/") && (pathname.endsWith("/apply") || pathname.endsWith("/review"))) ||
     pathname === "/payment";
 
@@ -41,5 +42,6 @@ export const config = {
     "/jobs/:id/apply",
     "/jobs/:id/review",
     "/payment",
+    "/payment/receipt/:path*",
   ],
 };

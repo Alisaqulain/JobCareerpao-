@@ -1,9 +1,8 @@
 "use client";
 
 import { Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Download, FileText, Briefcase, Mail } from "lucide-react";
+import { CheckCircle2, Download, FileText, Briefcase, Mail, Printer } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 function SuccessContent() {
@@ -50,14 +49,22 @@ function SuccessContent() {
           Confirmation email sent to your inbox
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
           {paymentId && (
-            <Button href={`/payment/receipt/${paymentId}`} variant="outline">
-              <Download className="h-4 w-4" /> Download Receipt
-            </Button>
+            <>
+              <Button href={`/payment/receipt/${paymentId}`}>
+                <Download className="h-4 w-4" /> View Receipt
+              </Button>
+              <Button href={`/payment/receipt/${paymentId}`} variant="outline">
+                <Printer className="h-4 w-4" /> Print / Download
+              </Button>
+            </>
           )}
+          <Button href="/profile/payments" variant="outline">
+            <FileText className="h-4 w-4" /> Payment History
+          </Button>
           <Button href="/profile">
-            <FileText className="h-4 w-4" /> View Applications
+            View Applications
           </Button>
           <Button href="/jobs" variant="ghost">
             <Briefcase className="h-4 w-4" /> Back to Jobs

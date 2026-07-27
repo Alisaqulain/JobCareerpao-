@@ -41,16 +41,34 @@ export default function JobsPageContent() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [debouncedQ, setDebouncedQ] = useState(q);
+  const [debouncedLocation, setDebouncedLocation] = useState(location);
+  const [debouncedCompany, setDebouncedCompany] = useState(company);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQ(q), 400);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedLocation(location), 400);
+    return () => clearTimeout(timer);
+  }, [location]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedCompany(company), 400);
+    return () => clearTimeout(timer);
+  }, [company]);
 
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({ limit: "20", page: String(page) });
-    if (q) params.set("search", q);
-    if (location) params.set("location", location);
+    if (debouncedQ) params.set("search", debouncedQ);
+    if (debouncedLocation) params.set("location", debouncedLocation);
     if (mode) params.set("mode", mode);
     if (jobType) params.set("jobType", jobType);
     if (experience) params.set("experience", experience);
-    if (company) params.set("company", company);
+    if (debouncedCompany) params.set("company", debouncedCompany);
     if (salaryMin) params.set("salaryMin", salaryMin);
     if (salaryMax) params.set("salaryMax", salaryMax);
     if (searchParams.get("category")) params.set("category", searchParams.get("category")!);
@@ -61,7 +79,7 @@ export default function JobsPageContent() {
         setHasMore((res.pagination as { hasMore?: boolean })?.hasMore || false);
       })
       .finally(() => setLoading(false));
-  }, [q, location, mode, jobType, experience, company, salaryMin, salaryMax, page, searchParams]);
+  }, [debouncedQ, debouncedLocation, mode, jobType, experience, debouncedCompany, salaryMin, salaryMax, page, searchParams]);
 
   const filtered = useMemo(() => jobs, [jobs]);
 

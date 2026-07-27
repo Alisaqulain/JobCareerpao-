@@ -59,16 +59,34 @@ async function sendOtpViaGmail(to: string, subject: string, html: string) {
   }
 }
 
+function getSiteUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXTAUTH_URL ||
+    "https://jobcareerpao.com"
+  ).replace(/\/$/, "");
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const client = getResend();
+      const result = await client.emails.send({
+        from: fromEmail(),
+        to,
+        subject,
+        html,
+      });
+      logger.info("Email sent via Resend", { to, subject, id: result.data?.id });
+      return result;
+    } catch (error) {
+      logger.warn("Resend failed, trying Gmail fallback", { to, subject, error: String(error) });
+    }
+  }
+
   try {
-    const client = getResend();
-    const result = await client.emails.send({
-      from: fromEmail(),
-      to,
-      subject,
-      html,
-    });
-    logger.info("Email sent", { to, subject, id: result.data?.id });
+    const result = await sendOtpViaGmail(to, subject, html);
+    logger.info("Email sent via Gmail", { to, subject });
     return result;
   } catch (error) {
     logger.error("Email send failed", { to, subject, error: String(error) });
@@ -143,20 +161,31 @@ export async function sendPaymentSuccessEmail(params: {
   paymentId: string;
   orderId: string;
   applicationNumber: string;
+  receiptNumber: string;
+  receiptId: string;
 }) {
   const supportEmail = process.env.ADMIN_EMAIL || "support@jobcareerpao.com";
+  const receiptUrl = `${getSiteUrl()}/payment/receipt/${params.receiptId}`;
+  const profileUrl = `${getSiteUrl()}/profile/payments`;
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px">
       <h2 style="color:#0B4F8A">Payment Successful ✅</h2>
       <p>Hi ${params.name},</p>
       <p>Your payment for <strong>${params.jobTitle}</strong> at <strong>${params.company}</strong> was successful.</p>
       <table style="width:100%;margin:16px 0;border-collapse:collapse">
+        <tr><td style="padding:8px 0;color:#64748b">Receipt No.</td><td style="padding:8px 0;font-weight:600">${params.receiptNumber}</td></tr>
         <tr><td style="padding:8px 0;color:#64748b">Payment ID</td><td style="padding:8px 0;font-weight:600">${params.paymentId}</td></tr>
         <tr><td style="padding:8px 0;color:#64748b">Order ID</td><td style="padding:8px 0;font-weight:600">${params.orderId}</td></tr>
         <tr><td style="padding:8px 0;color:#64748b">Application No.</td><td style="padding:8px 0;font-weight:600">${params.applicationNumber}</td></tr>
         <tr><td style="padding:8px 0;color:#64748b">Amount Paid</td><td style="padding:8px 0;font-weight:600">₹${params.amount}</td></tr>
       </table>
-      <p>Your application has been submitted. Track status from your dashboard.</p>
+      <p style="margin:24px 0">
+        <a href="${receiptUrl}" style="display:inline-block;background:#0B4F8A;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">
+          View &amp; Download Receipt
+        </a>
+      </p>
+      <p>Your application has been submitted. You can also view all payments in your <a href="${profileUrl}">profile dashboard</a>.</p>
+      <p style="color:#64748b;font-size:12px">Open the receipt page and use Print or Download to save a copy.</p>
       <p style="color:#64748b;font-size:12px">Need help? Contact ${supportEmail}</p>
       <p style="color:#64748b;font-size:12px">JobCareerPao Team</p>
     </div>

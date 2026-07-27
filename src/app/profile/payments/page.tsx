@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Download, Receipt } from "lucide-react";
+import { Download, Printer, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/hooks/useApi";
 
@@ -88,9 +88,14 @@ export default function PaymentHistoryPage() {
                   </td>
                   <td className="px-4 py-3">
                     {p.status === "paid" ? (
-                      <Link href={`/payment/receipt/${p._id}`} className="inline-flex items-center gap-1 text-brand-blue hover:underline">
-                        <Download className="h-3.5 w-3.5" /> Receipt
-                      </Link>
+                      <div className="flex flex-col gap-1">
+                        <Link href={`/payment/receipt/${p._id}`} className="inline-flex items-center gap-1 text-brand-blue hover:underline">
+                          <Download className="h-3.5 w-3.5" /> Download
+                        </Link>
+                        <Link href={`/payment/receipt/${p._id}`} className="inline-flex items-center gap-1 text-brand-slate hover:underline">
+                          <Printer className="h-3.5 w-3.5" /> Print
+                        </Link>
+                      </div>
                     ) : (
                       "—"
                     )}

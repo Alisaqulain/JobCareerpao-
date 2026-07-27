@@ -14,7 +14,7 @@ import { api } from "@/hooks/useApi";
 import { jobs as fallbackJobs } from "@/lib/data";
 import { getCompanyLogoProps } from "@/lib/companies";
 
-interface ApiJob {
+export interface ApiJob {
   _id: string;
   title: string;
   company: string;
@@ -28,11 +28,13 @@ interface ApiJob {
   posted?: string;
 }
 
-export function FeaturedJobs() {
-  const [jobs, setJobs] = useState<ApiJob[]>([]);
-  const [loading, setLoading] = useState(true);
+export function FeaturedJobs({ initialJobs }: { initialJobs?: ApiJob[] }) {
+  const [jobs, setJobs] = useState<ApiJob[]>(initialJobs || []);
+  const [loading, setLoading] = useState(!initialJobs?.length);
 
   useEffect(() => {
+    if (initialJobs?.length) return;
+
     api<ApiJob[]>("/api/jobs?limit=6")
       .then((res) => {
         if (res.data?.length) {
@@ -53,7 +55,7 @@ export function FeaturedJobs() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialJobs]);
 
   return (
     <section className="relative overflow-hidden bg-white dark:bg-slate-950 py-20">

@@ -262,6 +262,8 @@ async function completePayment(params: {
         paymentId: params.razorpayPaymentId,
         orderId: params.razorpayOrderId,
         applicationNumber,
+        receiptNumber,
+        receiptId: String(payment._id),
       }),
     ]);
 

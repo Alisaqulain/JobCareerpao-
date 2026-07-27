@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { LoadingScreen } from "@/components/layout/LoadingScreen";
 import { Providers } from "@/components/providers/Providers";
 import "./globals.css";
 
@@ -15,7 +14,7 @@ const inter = Inter({
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "600", "700"],
   display: "swap",
 });
 
@@ -120,7 +119,6 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-white text-brand-dark font-sans">
         <Providers>
-          <LoadingScreen />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />

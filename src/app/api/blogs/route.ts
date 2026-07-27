@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       featured: params.featured === "true",
     });
 
-    return successResponse(blogs, undefined, 200, pagination);
+    return successResponse(blogs, undefined, 200, pagination, 120);
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : "Failed to fetch blogs", 500);
   }

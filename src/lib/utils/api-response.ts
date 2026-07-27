@@ -5,10 +5,18 @@ export function successResponse<T>(
   data: T,
   message?: string,
   status = 200,
-  pagination?: PaginationMeta
+  pagination?: PaginationMeta,
+  cacheSeconds?: number
 ) {
   const body: ApiResponse<T> = { success: true, data, message, pagination };
-  return NextResponse.json(body, { status });
+  const response = NextResponse.json(body, { status });
+  if (cacheSeconds) {
+    response.headers.set(
+      "Cache-Control",
+      `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 5}`
+    );
+  }
+  return response;
 }
 
 export function errorResponse(message: string, status = 400, error?: string) {

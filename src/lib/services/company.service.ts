@@ -36,16 +36,26 @@ export async function listCompanies(params: {
     Company.countDocuments(filter),
   ]);
 
-  const withCounts = await Promise.all(
-    companies.map(async (c) => {
-      const openJobs = await Job.countDocuments({
-        companyId: c._id,
-        status: "active",
-        lastDate: { $gte: new Date() },
-      });
-      return { ...c, openJobs };
-    })
-  );
+  const companyIds = companies.map((c) => c._id);
+  const jobCounts =
+    companyIds.length > 0
+      ? await Job.aggregate<{ _id: typeof companyIds[number]; openJobs: number }>([
+          {
+            $match: {
+              companyId: { $in: companyIds },
+              status: "active",
+              lastDate: { $gte: new Date() },
+            },
+          },
+          { $group: { _id: "$companyId", openJobs: { $sum: 1 } } },
+        ])
+      : [];
+
+  const countMap = new Map(jobCounts.map((entry) => [String(entry._id), entry.openJobs]));
+  const withCounts = companies.map((c) => ({
+    ...c,
+    openJobs: countMap.get(String(c._id)) || 0,
+  }));
 
   return { companies: withCounts, pagination: getPagination(page, limit, total) };
 }

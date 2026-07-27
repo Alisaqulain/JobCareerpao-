@@ -11,7 +11,7 @@ import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { CompanyCardSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/hooks/useApi";
 
-interface ApiCompany {
+export interface ApiCompany {
   _id: string;
   name: string;
   industry: string;
@@ -21,11 +21,13 @@ interface ApiCompany {
   slug?: string;
 }
 
-export function FeaturedCompanies() {
-  const [companies, setCompanies] = useState<ApiCompany[]>([]);
-  const [loading, setLoading] = useState(true);
+export function FeaturedCompanies({ initialCompanies }: { initialCompanies?: ApiCompany[] }) {
+  const [companies, setCompanies] = useState<ApiCompany[]>(initialCompanies || []);
+  const [loading, setLoading] = useState(!initialCompanies?.length);
 
   useEffect(() => {
+    if (initialCompanies?.length) return;
+
     api<ApiCompany[]>("/api/companies?limit=10")
       .then((res) => {
         if (res.data?.length) {
@@ -45,7 +47,7 @@ export function FeaturedCompanies() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialCompanies]);
 
   return (
     <section className="section-glow-cyan relative overflow-hidden bg-brand-gray dark:bg-slate-900 py-20">

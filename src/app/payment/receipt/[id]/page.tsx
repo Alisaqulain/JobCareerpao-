@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/hooks/useApi";
+import { downloadReceiptHtml, printReceipt } from "@/lib/receipt-utils";
 
 interface ReceiptData {
   receiptNumber: string;
@@ -26,18 +28,41 @@ interface ReceiptData {
 
 export default function ReceiptPage() {
   const params = useParams();
+  const router = useRouter();
+  const { status } = useSession();
+  const receiptRef = useRef<HTMLElement>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api<ReceiptData>(`/api/payments/receipt/${params.id}`).then((res) => {
-      if (res.data) setReceipt(res.data);
-    });
-  }, [params.id]);
+    if (status === "unauthenticated") {
+      router.replace(`/auth/login?redirect=/payment/receipt/${params.id}`);
+      return;
+    }
+    if (status !== "authenticated") return;
 
-  if (!receipt) {
+    api<ReceiptData>(`/api/payments/receipt/${params.id}`).then((res) => {
+      if (res.data) {
+        setReceipt(res.data);
+      } else {
+        setError(res.message || "Receipt not found");
+      }
+    });
+  }, [params.id, router, status]);
+
+  if (status === "loading" || (status === "authenticated" && !receipt && !error)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <p className="text-brand-slate">Loading receipt...</p>
+      </div>
+    );
+  }
+
+  if (error || !receipt) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-brand-slate">{error || "Receipt not found"}</p>
+        <Button href="/profile/payments" variant="outline">Back to Payments</Button>
       </div>
     );
   }
@@ -46,17 +71,29 @@ export default function ReceiptPage() {
     ? new Date(receipt.paidAt).toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" })
     : "—";
 
+  const handleDownload = () => {
+    if (!receiptRef.current) return;
+    downloadReceiptHtml(receiptRef.current, receipt.receiptNumber);
+  };
+
   return (
     <div className="min-h-screen bg-brand-gray py-10 print:bg-white print:py-0">
       <div className="mx-auto max-w-2xl px-4">
-        <div className="mb-6 flex justify-end gap-2 print:hidden">
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="h-4 w-4" /> Download PDF
+        <div className="mb-6 flex flex-wrap justify-end gap-2 print:hidden">
+          <Button variant="outline" onClick={printReceipt}>
+            <Printer className="h-4 w-4" /> Print
           </Button>
-          <Button href="/profile" variant="ghost">Back to Dashboard</Button>
+          <Button variant="outline" onClick={handleDownload}>
+            <Download className="h-4 w-4" /> Download
+          </Button>
+          <Button href="/profile/payments" variant="ghost">Back to Payments</Button>
         </div>
 
-        <article id="receipt" className="rounded-2xl border border-slate-200 bg-white p-8 shadow-card print:shadow-none print:border-0">
+        <article
+          ref={receiptRef}
+          id="receipt"
+          className="rounded-2xl border border-slate-200 bg-white p-8 shadow-card print:shadow-none print:border-0"
+        >
           <header className="flex items-start justify-between border-b border-slate-200 pb-6">
             <div>
               <h1 className="font-display text-2xl font-bold text-brand-blue">JobCareerPao</h1>
