@@ -3,6 +3,7 @@ import { Inter, Poppins } from "next/font/google";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Providers } from "@/components/providers/Providers";
+import { DEFAULT_SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -19,7 +20,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://jobcareerpao.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL),
   title: {
     default: "JobCareerPao — Find Your Dream Job. Build Your Future.",
     template: "%s | JobCareerPao",
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://jobcareerpao.com",
+    url: process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL,
     siteName: "JobCareerPao",
     title: "JobCareerPao — Find Your Dream Job. Build Your Future.",
     description:
@@ -82,8 +83,8 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "JobCareerPao",
-  url: "https://jobcareerpao.com",
-  logo: "https://jobcareerpao.com/logo.png",
+  url: process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL,
+  logo: `${process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL}/logo.png`,
   description:
     "India's premium job portal connecting candidates with verified companies.",
   sameAs: [

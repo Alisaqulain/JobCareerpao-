@@ -5,8 +5,10 @@ import { Blog } from "@/models/Blog";
 import { Company } from "@/models/Company";
 import { blogPosts } from "@/lib/blog";
 
+import { getSiteUrl } from "@/lib/site";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "https://jobcareerpao.com";
+  const base = getSiteUrl();
   const staticRoutes = ["", "/jobs", "/blog", "/about", "/contact", "/faq", "/companies", "/careers", "/privacy", "/terms", "/refund"].map(
     (path) => ({ url: `${base}${path}`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: path === "" ? 1 : 0.8 })
   );

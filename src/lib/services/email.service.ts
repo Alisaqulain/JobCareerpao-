@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { logger } from "@/lib/utils/logger";
+import { getSiteUrl } from "@/lib/site";
 
 const OTP_GMAIL = "jobcareerpao@gmail.com";
 
@@ -57,14 +58,6 @@ async function sendOtpViaGmail(to: string, subject: string, html: string) {
     logger.error("Gmail OTP send failed", { to, subject, error: String(error) });
     throw error;
   }
-}
-
-function getSiteUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXTAUTH_URL ||
-    "https://jobcareerpao.com"
-  ).replace(/\/$/, "");
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
