@@ -2,7 +2,25 @@ export type UserRole = "user" | "admin";
 
 export type JobStatus = "active" | "inactive" | "archived";
 
-export type ApplicationStatus = "pending" | "selected" | "rejected";
+export type ApplicationStatus =
+  | "applied"
+  | "under_review"
+  | "shortlisted"
+  | "interview"
+  | "selected"
+  | "rejected"
+  | "archived"
+  | "pending";
+
+export type ResumeType = "generated" | "uploaded";
+
+export interface UserAddress {
+  line1?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  country?: string;
+}
 
 export type PaymentStatus = "created" | "paid" | "failed" | "refunded" | "cancelled";
 
@@ -74,11 +92,13 @@ export interface DashboardStats {
   inactiveJobs: number;
   totalUsers: number;
   totalApplications: number;
+  activeApplications: number;
   todayApplications: number;
   revenue: number;
   pendingApplications: number;
   selectedApplications: number;
   rejectedApplications: number;
+  archivedApplications: number;
   totalCompanies: number;
   totalBlogs: number;
   publishedBlogs: number;

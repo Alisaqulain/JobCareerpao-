@@ -21,10 +21,14 @@ export async function api<T = unknown>(
   }
 
   const res = await fetch(url, { ...options, headers, body, credentials: "include" });
-  const contentType = res.headers.get("content-type");
+  const contentType = res.headers.get("content-type") || "";
 
-  if (contentType?.includes("application/json")) {
-    return res.json();
+  if (contentType.includes("application/json")) {
+    const body = await res.json();
+    if (!res.ok && body.success === undefined) {
+      return { success: false, message: body.message || res.statusText, ...body };
+    }
+    return body;
   }
 
   if (!res.ok) {

@@ -1,4 +1,5 @@
 import { APPLY_GST, GST_RATE } from "@/lib/constants";
+import type { ResumeType } from "@/types";
 
 export interface FeeBreakdown {
   applicationFee: number;
@@ -44,7 +45,10 @@ export const APPLICATION_STORAGE_KEY = "jcp_application_draft";
 export interface ApplicationDraft {
   jobId: string;
   formAnswers: Record<string, unknown>;
-  resumeUrl: string;
+  resumeType: ResumeType;
+  resumeUrl?: string;
+  resumePublicId?: string;
+  coverLetter?: string;
   savedAt: string;
 }
 

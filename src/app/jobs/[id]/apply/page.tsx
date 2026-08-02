@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { FileText, Upload, AlertCircle, ArrowRight } from "lucide-react";
+import { FileText, Upload, AlertCircle, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
@@ -13,7 +13,7 @@ import { api } from "@/hooks/useApi";
 import { getJobLogoProps } from "@/lib/job-utils";
 import { saveApplicationDraft, getApplicationDraft } from "@/lib/payment-utils";
 import { toast } from "sonner";
-import type { DynamicField } from "@/types";
+import type { DynamicField, ResumeType } from "@/types";
 
 interface JobDetail {
   _id: string;
@@ -31,7 +31,9 @@ interface ProfileData {
   name: string;
   email: string;
   phone: string;
-  resumeUrl?: string;
+  skills: string[];
+  education: unknown[];
+  experience: unknown[];
   profileComplete: boolean;
 }
 
@@ -43,6 +45,10 @@ export default function ApplyJobPage() {
   const [job, setJob] = useState<JobDetail | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [resumeType, setResumeType] = useState<ResumeType>("generated");
+  const [resumeUrl, setResumeUrl] = useState<string>();
+  const [resumePublicId, setResumePublicId] = useState<string>();
+  const [coverLetter, setCoverLetter] = useState("");
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -58,7 +64,13 @@ export default function ApplyJobPage() {
         if (res.data) setProfile(res.data);
       });
       const draft = getApplicationDraft(jobId);
-      if (draft) setAnswers(draft.formAnswers);
+      if (draft) {
+        setAnswers(draft.formAnswers);
+        setResumeType(draft.resumeType);
+        setResumeUrl(draft.resumeUrl);
+        setResumePublicId(draft.resumePublicId);
+        setCoverLetter(draft.coverLetter || "");
+      }
     }
   }, [status, jobId, router]);
 
@@ -69,12 +81,14 @@ export default function ApplyJobPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("type", "resume");
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      formData.append("jobId", jobId);
+      const res = await fetch("/api/applications/resume", { method: "POST", body: formData });
       const data = await res.json();
       if (!data.success) throw new Error(data.message);
-      setProfile((p) => (p ? { ...p, resumeUrl: data.data.url } : p));
-      toast.success("Resume uploaded");
+      setResumeType("uploaded");
+      setResumeUrl(data.data.url);
+      setResumePublicId(data.data.publicId);
+      toast.success("Resume uploaded for this application");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -85,14 +99,14 @@ export default function ApplyJobPage() {
   const handleContinue = () => {
     if (!job || !profile) return;
 
-    if (!profile.profileComplete && (!profile.name || !profile.phone)) {
-      toast.error("Please complete your profile first");
+    if (!profile.profileComplete) {
+      toast.error("Please complete your profile (skills, education, experience) before applying");
       router.push(`/profile?redirect=/jobs/${jobId}/apply`);
       return;
     }
 
-    if (!profile.resumeUrl) {
-      toast.error("Please upload your resume before applying");
+    if (resumeType === "uploaded" && (!resumeUrl || !resumePublicId)) {
+      toast.error("Please upload a resume for this application");
       return;
     }
 
@@ -105,7 +119,10 @@ export default function ApplyJobPage() {
     saveApplicationDraft({
       jobId,
       formAnswers: answers,
-      resumeUrl: profile.resumeUrl,
+      resumeType,
+      resumeUrl,
+      resumePublicId,
+      coverLetter: coverLetter.trim() || undefined,
       savedAt: new Date().toISOString(),
     });
 
@@ -139,7 +156,9 @@ export default function ApplyJobPage() {
               <AlertCircle className="h-5 w-5 shrink-0 text-brand-orange" />
               <div>
                 <p className="font-medium text-brand-dark dark:text-white">Complete your profile</p>
-                <p className="text-brand-slate">Add your name, phone, and other details before applying.</p>
+                <p className="text-brand-slate">
+                  Add skills, education, and experience. Resumes are generated or uploaded per application — not saved on your profile.
+                </p>
                 <Link href={`/profile?redirect=/jobs/${jobId}/apply`} className="mt-1 inline-block text-brand-blue font-semibold">
                   Go to Profile →
                 </Link>
@@ -148,38 +167,86 @@ export default function ApplyJobPage() {
           )}
 
           <div className="mt-6">
-            <h2 className="font-display text-lg font-semibold dark:text-white">Resume</h2>
-            {profile.resumeUrl ? (
-              <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                <FileText className="h-8 w-8 text-brand-cyan" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium dark:text-white">Resume uploaded</p>
-                  <a href={profile.resumeUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-cyan hover:underline">
-                    Preview resume
-                  </a>
-                </div>
-                <label className="cursor-pointer text-xs font-semibold text-brand-blue">
-                  Replace
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} disabled={uploading} />
-                </label>
+            <h2 className="font-display text-lg font-semibold dark:text-white">Resume for this application</h2>
+            <p className="mt-1 text-sm text-brand-slate">
+              Choose one option. The resume is stored only with this job application.
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setResumeType("generated")}
+                className={`rounded-xl border p-4 text-left transition ${
+                  resumeType === "generated"
+                    ? "border-brand-blue bg-brand-blue/5"
+                    : "border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                <Sparkles className="h-5 w-5 text-brand-cyan" />
+                <p className="mt-2 font-semibold dark:text-white">Option A — Auto-generate PDF</p>
+                <p className="mt-1 text-xs text-brand-slate">
+                  Creates a PDF from your profile when payment completes.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setResumeType("uploaded")}
+                className={`rounded-xl border p-4 text-left transition ${
+                  resumeType === "uploaded"
+                    ? "border-brand-blue bg-brand-blue/5"
+                    : "border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                <Upload className="h-5 w-5 text-brand-cyan" />
+                <p className="mt-2 font-semibold dark:text-white">Option B — Upload custom resume</p>
+                <p className="mt-1 text-xs text-brand-slate">PDF/DOC/DOCX up to 5MB for this application only.</p>
+              </button>
+            </div>
+
+            {resumeType === "uploaded" && (
+              <div className="mt-4">
+                {resumeUrl ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                    <FileText className="h-8 w-8 text-brand-cyan" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium dark:text-white">Resume ready</p>
+                      <a href={resumeUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-cyan hover:underline">
+                        Preview uploaded file
+                      </a>
+                    </div>
+                    <label className="cursor-pointer text-xs font-semibold text-brand-blue">
+                      Replace
+                      <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} disabled={uploading} />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 p-8 hover:border-brand-cyan">
+                    <Upload className="h-8 w-8 text-brand-slate" />
+                    <span className="text-sm font-medium text-brand-slate">
+                      {uploading ? "Uploading..." : "Upload Resume (PDF/DOC/DOCX)"}
+                    </span>
+                    <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} disabled={uploading} />
+                  </label>
+                )}
               </div>
-            ) : (
-              <label className="mt-3 flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 p-8 hover:border-brand-cyan">
-                <Upload className="h-8 w-8 text-brand-slate" />
-                <span className="text-sm font-medium text-brand-slate">{uploading ? "Uploading..." : "Upload Resume (PDF/DOC)"}</span>
-                <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} disabled={uploading} />
-              </label>
             )}
+
+            <div className="mt-4">
+              <label className="mb-1 block text-sm font-medium dark:text-white">Cover letter (optional)</label>
+              <textarea
+                className="min-h-[90px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+                placeholder="Brief note to the employer..."
+              />
+            </div>
           </div>
 
           <div className="mt-8">
             <h2 className="font-display text-lg font-semibold dark:text-white">Application Form</h2>
             <div className="mt-4">
-              <DynamicApplicationForm
-                fields={job.dynamicFields}
-                answers={answers}
-                onChange={setAnswers}
-              />
+              <DynamicApplicationForm fields={job.dynamicFields} answers={answers} onChange={setAnswers} />
             </div>
           </div>
 

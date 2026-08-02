@@ -4,6 +4,7 @@ import { requireUser, parseJsonBody } from "@/lib/auth/helpers";
 import { createOrderSchema } from "@/lib/validations";
 import { createPaymentOrder } from "@/lib/services/payment.service";
 import { validateCsrfOrigin } from "@/lib/utils/crypto";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +28,6 @@ export async function POST(request: NextRequest) {
 
     return successResponse(order, "Payment order created");
   } catch (err) {
-    return errorResponse(err instanceof Error ? err.message : "Order creation failed", 400);
+    return errorResponse(getErrorMessage(err, "Order creation failed"), 400);
   }
 }

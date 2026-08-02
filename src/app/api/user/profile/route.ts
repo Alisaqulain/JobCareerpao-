@@ -14,7 +14,15 @@ export async function GET() {
   const profile = await User.findById(user!.id).select("-password").lean();
   if (!profile) return errorResponse("User not found", 404);
 
-  return successResponse(profile);
+  const profileComplete = Boolean(
+    profile.name &&
+      profile.phone &&
+      profile.skills?.length &&
+      profile.education?.length &&
+      profile.experience?.length
+  );
+
+  return successResponse({ ...profile, profileComplete });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -39,7 +47,7 @@ export async function PATCH(request: NextRequest) {
       Boolean(update.phone) &&
       Boolean(update.skills?.length) &&
       Boolean(update.education?.length) &&
-      Boolean(update.resumeUrl);
+      Boolean(update.experience?.length);
 
     const profile = await User.findByIdAndUpdate(
       user!.id,

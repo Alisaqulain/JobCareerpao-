@@ -63,7 +63,10 @@ export default function ApplicationReviewPage() {
         json: {
           jobId: job._id,
           formAnswers: draft.formAnswers,
+          resumeType: draft.resumeType,
           resumeUrl: draft.resumeUrl,
+          resumePublicId: draft.resumePublicId,
+          coverLetter: draft.coverLetter,
         },
       });
 
@@ -125,11 +128,22 @@ export default function ApplicationReviewPage() {
             <FileText className="h-8 w-8 text-brand-cyan" />
             <div>
               <p className="text-sm font-medium dark:text-white">Resume</p>
-              <a href={draft.resumeUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-cyan hover:underline">
-                View uploaded resume
-              </a>
+              {draft.resumeType === "generated" ? (
+                <p className="text-xs text-brand-slate">PDF will be generated from your profile after payment.</p>
+              ) : (
+                <a href={draft.resumeUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-cyan hover:underline">
+                  View uploaded resume
+                </a>
+              )}
             </div>
           </div>
+
+          {draft.coverLetter && (
+            <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+              <p className="text-sm font-medium dark:text-white">Cover Letter</p>
+              <p className="mt-2 whitespace-pre-line text-sm text-brand-slate">{draft.coverLetter}</p>
+            </div>
+          )}
 
           <div className="mt-6">
             <FeeBreakdown applicationFee={job.applicationFee} />

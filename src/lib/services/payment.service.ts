@@ -23,6 +23,10 @@ import {
 import { getPagination, parseSort } from "@/lib/utils/crypto";
 import { PAYMENT_GATEWAY } from "@/lib/constants";
 import { logger } from "@/lib/utils/logger";
+import { resolveApplicationResume } from "@/lib/services/resume.service";
+import { incrementApplicationsAllTime } from "@/lib/services/analytics.service";
+import { isProfileReadyForApplication } from "@/lib/resume/profile";
+import type { ResumeType } from "@/types";
 import ExcelJS from "exceljs";
 
 async function assertNoDuplicateApplication(userId: string, jobId: string) {
@@ -41,7 +45,10 @@ export async function createPaymentOrder(params: {
   userId: string;
   jobId: string;
   formAnswers: Record<string, unknown>;
-  resumeUrl: string;
+  resumeType: ResumeType;
+  resumeUrl?: string;
+  resumePublicId?: string;
+  coverLetter?: string;
 }) {
   await connectDB();
   const job = await Job.findById(params.jobId);
@@ -52,16 +59,20 @@ export async function createPaymentOrder(params: {
 
   const user = await User.findById(params.userId);
   if (!user) throw new Error("User not found");
-  if (!user.resumeUrl && !params.resumeUrl) {
-    throw new Error("Please upload your resume before applying");
+  if (!isProfileReadyForApplication(user)) {
+    throw new Error("Please complete your profile (skills, education, experience) before applying");
   }
-  if (!user.profileComplete && (!user.name || !user.phone)) {
-    throw new Error("Please complete your profile before applying");
+  if (params.resumeType === "uploaded" && (!params.resumeUrl || !params.resumePublicId)) {
+    throw new Error("Please upload a resume for this application");
   }
 
   await cancelPendingOrders(params.userId, params.jobId);
 
   const fees = calculateFeeBreakdown(job.applicationFee);
+  if (fees.total < 1) {
+    throw new Error("This job has no application fee configured. Ask admin to set a fee of at least ₹10.");
+  }
+
   const receipt = `job_${params.jobId}_${Date.now()}`.slice(0, 40);
 
   const order = await createRazorpayOrder({
@@ -86,7 +97,10 @@ export async function createPaymentOrder(params: {
     receipt,
     metadata: {
       formAnswers: params.formAnswers,
+      resumeType: params.resumeType,
       resumeUrl: params.resumeUrl,
+      resumePublicId: params.resumePublicId,
+      coverLetter: params.coverLetter,
       feeBreakdown: fees,
     },
   });
@@ -105,15 +119,42 @@ export async function createPaymentOrder(params: {
   };
 }
 
-export async function getPaymentOrderDetails(orderId: string, userId: string) {
+export async function getPaymentOrderDetails(
+  orderId: string,
+  userId: string,
+  paymentId?: string | null
+) {
   await connectDB();
-  const payment = await Payment.findOne({ razorpayOrderId: orderId, userId })
+  if (!userId) throw new Error("Unauthorized");
+
+  let payment = await Payment.findOne({ razorpayOrderId: orderId })
     .populate("jobId", "title company applicationFee")
     .lean();
-  if (!payment) throw new Error("Payment order not found");
 
-  const job = payment.jobId as { title?: string; company?: string; applicationFee?: number };
-  const fees = calculateFeeBreakdown(job.applicationFee || payment.baseAmount);
+  if (!payment && paymentId && mongoose.Types.ObjectId.isValid(paymentId)) {
+    payment = await Payment.findById(paymentId)
+      .populate("jobId", "title company applicationFee")
+      .lean();
+  }
+
+  if (!payment) throw new Error("Payment order not found");
+  if (String(payment.userId) !== String(userId)) {
+    throw new Error("Payment order not found");
+  }
+
+  const job = payment.jobId as
+    | { _id?: { toString(): string }; title?: string; company?: string; applicationFee?: number }
+    | string
+    | null;
+  const jobRecord =
+    job && typeof job === "object" && "title" in job ? job : null;
+  const resolvedJobId =
+    jobRecord?._id?.toString?.() ||
+    (typeof payment.jobId === "object" && payment.jobId !== null && "_id" in payment.jobId
+      ? String((payment.jobId as { _id: unknown })._id)
+      : String(payment.jobId));
+
+  const fees = calculateFeeBreakdown(jobRecord?.applicationFee || payment.baseAmount);
 
   return {
     orderId: payment.razorpayOrderId,
@@ -124,9 +165,9 @@ export async function getPaymentOrderDetails(orderId: string, userId: string) {
     gstAmount: payment.gstAmount,
     currency: payment.currency,
     key: getRazorpayKeyId(),
-    jobTitle: job.title,
-    company: job.company,
-    jobId: String(payment.jobId),
+    jobTitle: jobRecord?.title,
+    company: jobRecord?.company,
+    jobId: resolvedJobId,
     feeBreakdown: fees,
   };
 }
@@ -138,7 +179,10 @@ export async function verifyAndSubmitApplication(params: {
   razorpayPaymentId: string;
   razorpaySignature: string;
   formAnswers: Record<string, unknown>;
-  resumeUrl: string;
+  resumeType: ResumeType;
+  resumeUrl?: string;
+  resumePublicId?: string;
+  coverLetter?: string;
 }) {
   const valid = verifyRazorpaySignature(
     params.razorpayOrderId,
@@ -154,7 +198,10 @@ export async function verifyAndSubmitApplication(params: {
     razorpayPaymentId: params.razorpayPaymentId,
     razorpaySignature: params.razorpaySignature,
     formAnswers: params.formAnswers,
+    resumeType: params.resumeType,
     resumeUrl: params.resumeUrl,
+    resumePublicId: params.resumePublicId,
+    coverLetter: params.coverLetter,
   });
 }
 
@@ -165,7 +212,10 @@ async function completePayment(params: {
   razorpayPaymentId: string;
   razorpaySignature?: string;
   formAnswers: Record<string, unknown>;
-  resumeUrl: string;
+  resumeType: ResumeType;
+  resumeUrl?: string;
+  resumePublicId?: string;
+  coverLetter?: string;
   method?: string;
   skipSignatureCheck?: boolean;
 }) {
@@ -173,9 +223,10 @@ async function completePayment(params: {
 
   const payment = await Payment.findOne({
     razorpayOrderId: params.razorpayOrderId,
-    userId: params.userId,
   });
-  if (!payment) throw new Error("Payment record not found");
+  if (!payment || String(payment.userId) !== String(params.userId)) {
+    throw new Error("Payment record not found");
+  }
   if (payment.status === "paid") {
     const app = await Application.findOne({ paymentId: payment._id });
     return { payment, application: app, alreadyProcessed: true };
@@ -202,15 +253,31 @@ async function completePayment(params: {
 
   const metadata = payment.metadata as {
     formAnswers?: Record<string, unknown>;
+    resumeType?: ResumeType;
     resumeUrl?: string;
+    resumePublicId?: string;
+    coverLetter?: string;
   } | undefined;
 
   const formAnswers = params.formAnswers || metadata?.formAnswers || {};
-  const resumeUrl = params.resumeUrl || metadata?.resumeUrl || user.resumeUrl || "";
+  const resumeType = params.resumeType || metadata?.resumeType || "generated";
+  const coverLetter = params.coverLetter || metadata?.coverLetter;
 
   const receiptNumber = generateReceiptNumber();
   const applicationNumber = generateApplicationNumber();
   const paidAt = new Date();
+
+  const resolvedResume = await resolveApplicationResume({
+    userId: params.userId,
+    jobId: params.jobId,
+    applicationNumber,
+    resume: {
+      resumeType,
+      resumeUrl: params.resumeUrl || metadata?.resumeUrl,
+      resumePublicId: params.resumePublicId || metadata?.resumePublicId,
+      coverLetter,
+    },
+  });
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -232,13 +299,19 @@ async function completePayment(params: {
           userId: params.userId,
           jobId: params.jobId,
           applicationNumber,
-          resumeUrl,
+          resumeUrl: resolvedResume.url,
+          resumePublicId: resolvedResume.publicId,
+          resumeType: resolvedResume.resumeType,
+          profileSnapshot: resolvedResume.snapshot as unknown as Record<string, unknown>,
+          coverLetter,
           formAnswers,
           paymentStatus: "paid",
           paymentId: payment._id,
           razorpayPaymentId: params.razorpayPaymentId,
           appliedDate: paidAt,
-          status: "pending",
+          status: "applied",
+          jobTitle: job.title,
+          companyName: job.company,
         },
       ],
       { session }
@@ -250,6 +323,7 @@ async function completePayment(params: {
     await Job.findByIdAndUpdate(params.jobId, { $inc: { applicationCount: 1 } }, { session });
 
     await session.commitTransaction();
+    await incrementApplicationsAllTime(1);
 
     await Promise.all([
       sendApplicationReceivedEmail(user.email, user.name, job.title, job.company),
@@ -334,7 +408,10 @@ export async function handleWebhookEvent(rawBody: string, signature: string) {
 
     const metadata = existing.metadata as {
       formAnswers?: Record<string, unknown>;
+      resumeType?: ResumeType;
       resumeUrl?: string;
+      resumePublicId?: string;
+      coverLetter?: string;
     };
 
     await completePayment({
@@ -343,7 +420,10 @@ export async function handleWebhookEvent(rawBody: string, signature: string) {
       razorpayOrderId: orderId,
       razorpayPaymentId: paymentId,
       formAnswers: metadata?.formAnswers || {},
-      resumeUrl: metadata?.resumeUrl || "",
+      resumeType: metadata?.resumeType || "generated",
+      resumeUrl: metadata?.resumeUrl,
+      resumePublicId: metadata?.resumePublicId,
+      coverLetter: metadata?.coverLetter,
       method: String(paymentEntity.method || "unknown"),
     });
 

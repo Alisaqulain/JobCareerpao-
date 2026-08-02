@@ -8,13 +8,13 @@ import {
   Briefcase,
   Users,
   FileText,
-  Archive,
   LogOut,
   Menu,
   X,
   CreditCard,
   Building2,
   BookOpen,
+  Download,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -25,9 +25,9 @@ const links = [
   { href: "/admin/companies", label: "Companies", icon: Building2 },
   { href: "/admin/blogs", label: "Blogs", icon: BookOpen },
   { href: "/admin/applicants", label: "Applicants", icon: FileText },
+  { href: "/admin/archive-manager", label: "Export Data", icon: Download },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
   { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/archives", label: "Archives", icon: Archive },
 ];
 
 export function AdminSidebar() {

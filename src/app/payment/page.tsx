@@ -33,6 +33,7 @@ function PaymentContent() {
   const { data: session, status } = useSession();
   const orderId = searchParams.get("orderId");
   const jobId = searchParams.get("jobId");
+  const paymentId = searchParams.get("paymentId");
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [paying, setPaying] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
@@ -42,24 +43,35 @@ function PaymentContent() {
       router.replace(`/auth/login?redirect=/payment?orderId=${orderId}&jobId=${jobId}`);
       return;
     }
+    if (status !== "authenticated") return;
     if (!orderId) {
       router.replace("/jobs");
       return;
     }
     loadRazorpay().then(setScriptReady);
-    api<OrderDetails>(`/api/payments/order/${orderId}`).then((res) => {
-      if (res.data) {
-        if (res.data.status === "paid") {
-          router.replace(`/payment/success?paymentId=${res.data.paymentId}`);
-          return;
+
+    const params = new URLSearchParams();
+    if (paymentId) params.set("paymentId", paymentId);
+    const query = params.toString();
+
+    api<OrderDetails>(`/api/payments/order/${encodeURIComponent(orderId)}${query ? `?${query}` : ""}`)
+      .then((res) => {
+        if (res.data) {
+          if (res.data.status === "paid") {
+            router.replace(`/payment/success?paymentId=${res.data.paymentId}`);
+            return;
+          }
+          setOrder(res.data);
+        } else {
+          toast.error(res.message || "Order not found");
+          router.replace("/jobs");
         }
-        setOrder(res.data);
-      } else {
-        toast.error(res.message || "Order not found");
+      })
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "Could not load payment order");
         router.replace("/jobs");
-      }
-    });
-  }, [status, orderId, jobId, router]);
+      });
+  }, [status, orderId, jobId, paymentId, router]);
 
   const openCheckout = useCallback(async () => {
     if (!order || !jobId) return;
@@ -78,20 +90,26 @@ function PaymentContent() {
       const Razorpay = (window as unknown as {
         Razorpay: new (options: Record<string, unknown>) => {
           open: () => void;
-          on: (event: string, handler: () => void) => void;
+          on: (event: string, handler: (response: { error?: { description?: string } }) => void) => void;
         };
       }).Razorpay;
 
+      if (!order.key?.startsWith("rzp_")) {
+        throw new Error("Razorpay key is missing. Restart the server after updating .env.local.");
+      }
+
       const rzp = new Razorpay({
         key: order.key,
-        amount: Math.round(order.amount * 100),
-        currency: "INR",
+        order_id: order.orderId,
         name: "JobCareerPao",
         description: `${order.jobTitle} — ${order.company}`,
-        order_id: order.orderId,
         prefill: {
-          name: session?.user?.name,
-          email: session?.user?.email,
+          name: session?.user?.name || "",
+          email: session?.user?.email || "",
+        },
+        notes: {
+          job_id: jobId,
+          payment_id: order.paymentId,
         },
         handler: async (response: {
           razorpay_order_id: string;
@@ -109,7 +127,10 @@ function PaymentContent() {
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
               formAnswers: draft.formAnswers,
+              resumeType: draft.resumeType,
               resumeUrl: draft.resumeUrl,
+              resumePublicId: draft.resumePublicId,
+              coverLetter: draft.coverLetter,
             },
           });
 
@@ -133,6 +154,10 @@ function PaymentContent() {
           },
         },
         theme: { color: "#0B4F8A" },
+      });
+
+      rzp.on("payment.failed", (response) => {
+        toast.error(response.error?.description || "Payment failed. Try another method.");
       });
 
       rzp.open();
@@ -192,6 +217,11 @@ function PaymentContent() {
             <p className="mt-3 text-center text-xs text-brand-slate">
               UPI · Cards · Net Banking · Wallets accepted
             </p>
+            {order.amount < 10 && (
+              <p className="mt-2 text-center text-xs text-amber-700">
+                For reliable checkout, set the job application fee to at least ₹10 in admin.
+              </p>
+            )}
           </div>
 
           <Button href={`/jobs/${jobId}/review`} variant="ghost" className="mt-4 w-full">

@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/helpers";
 import { getPaymentOrderDetails } from "@/lib/services/payment.service";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
@@ -12,7 +12,8 @@ export async function GET(
     if (error) return error;
 
     const { orderId } = await params;
-    const details = await getPaymentOrderDetails(orderId, user!.id);
+    const paymentId = request.nextUrl.searchParams.get("paymentId");
+    const details = await getPaymentOrderDetails(orderId, user!.id, paymentId);
     return successResponse(details);
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : "Order not found", 404);

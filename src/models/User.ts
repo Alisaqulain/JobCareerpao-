@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
-import type { EducationEntry, ExperienceEntry, UserRole } from "@/types";
+import type { EducationEntry, ExperienceEntry, UserRole, UserAddress } from "@/types";
 
 export interface IUser extends Document {
   name: string;
@@ -11,10 +11,14 @@ export interface IUser extends Document {
   profileComplete: boolean;
   bio?: string;
   location?: string;
+  address?: UserAddress;
+  languages: string[];
   skills: string[];
   education: EducationEntry[];
   experience: ExperienceEntry[];
+  /** @deprecated Profile no longer stores resumes — kept for legacy records only */
   resumeUrl?: string;
+  /** @deprecated */
   resumePublicId?: string;
   profilePicture?: string;
   profilePicturePublicId?: string;
@@ -46,6 +50,17 @@ const ExperienceSchema = new Schema(
   { _id: false }
 );
 
+const AddressSchema = new Schema(
+  {
+    line1: String,
+    city: String,
+    state: String,
+    pincode: String,
+    country: { type: String, default: "India" },
+  },
+  { _id: false }
+);
+
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
@@ -57,6 +72,8 @@ const UserSchema = new Schema<IUser>(
     profileComplete: { type: Boolean, default: false },
     bio: String,
     location: String,
+    address: AddressSchema,
+    languages: { type: [String], default: [] },
     skills: { type: [String], default: [] },
     education: { type: [EducationSchema], default: [] },
     experience: { type: [ExperienceSchema], default: [] },

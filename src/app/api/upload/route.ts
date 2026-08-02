@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { successResponse, errorResponse } from "@/lib/utils/api-response";
 import { requireUser } from "@/lib/auth/helpers";
 import {
-  uploadResume,
   uploadProfileImage,
   validateResumeFile,
 } from "@/lib/services/cloudinary.service";
@@ -40,16 +39,14 @@ export async function POST(request: NextRequest) {
       return successResponse({ url: result.url, publicId: result.publicId }, "Profile picture uploaded");
     }
 
-    validateResumeFile(file);
-    const result = await uploadResume(buffer, filename);
-    if (dbUser.resumePublicId) {
-      await deleteCloudinaryAsset(dbUser.resumePublicId, "raw");
+    if (type === "resume") {
+      return errorResponse(
+        "Profile resumes are no longer stored. Upload a resume during job application instead.",
+        400
+      );
     }
-    dbUser.resumeUrl = result.url;
-    dbUser.resumePublicId = result.publicId;
-    await dbUser.save();
 
-    return successResponse({ url: result.url, publicId: result.publicId }, "Resume uploaded");
+    return errorResponse("Invalid upload type", 400);
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : "Upload failed", 400);
   }

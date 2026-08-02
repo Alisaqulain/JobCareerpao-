@@ -15,10 +15,17 @@ interface ProfileData {
   phone: string;
   bio?: string;
   location?: string;
+  address?: {
+    line1?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    country?: string;
+  };
+  languages: string[];
   skills: string[];
   education: Array<{ degree: string; institution: string; year: number; grade?: string }>;
   experience: Array<{ title: string; company: string; startDate: string; endDate?: string; current?: boolean }>;
-  resumeUrl?: string;
   profilePicture?: string;
   profileComplete: boolean;
 }
@@ -50,25 +57,18 @@ export default function ProfilePage() {
     }
   }, [status, router]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "resume" | "profile") => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("type", type);
+    formData.append("type", "profile");
     try {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!data.success) throw new Error(data.message);
-      toast.success(type === "resume" ? "Resume uploaded" : "Profile picture uploaded");
-      setProfile((p) =>
-        p
-          ? {
-              ...p,
-              [type === "resume" ? "resumeUrl" : "profilePicture"]: data.data.url,
-            }
-          : p
-      );
+      toast.success("Profile picture uploaded");
+      setProfile((p) => (p ? { ...p, profilePicture: data.data.url } : p));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     }
@@ -85,10 +85,11 @@ export default function ProfilePage() {
           phone: profile.phone,
           bio: profile.bio,
           location: profile.location,
+          address: profile.address,
+          languages: profile.languages,
           skills: profile.skills,
           education: profile.education,
           experience: profile.experience,
-          resumeUrl: profile.resumeUrl,
           profilePicture: profile.profilePicture,
         },
       });
@@ -177,22 +178,77 @@ export default function ProfilePage() {
                   }
                 />
               </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium">Languages (comma separated)</label>
+                <input
+                  className={inputClass}
+                  value={(profile.languages || []).join(", ")}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      languages: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                    })
+                  }
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium">Address</label>
+                <input
+                  className={`${inputClass} mb-2`}
+                  placeholder="Street / area"
+                  value={profile.address?.line1 || ""}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      address: { ...profile.address, line1: e.target.value },
+                    })
+                  }
+                />
+                <div className="grid gap-2 md:grid-cols-3">
+                  <input
+                    className={inputClass}
+                    placeholder="City"
+                    value={profile.address?.city || ""}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        address: { ...profile.address, city: e.target.value },
+                      })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="State"
+                    value={profile.address?.state || ""}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        address: { ...profile.address, state: e.target.value },
+                      })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Pincode"
+                    value={profile.address?.pincode || ""}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        address: { ...profile.address, pincode: e.target.value },
+                      })
+                    }
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium">Resume (PDF/DOC/DOCX, max 5MB)</label>
-                <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleUpload(e, "resume")} />
-                {profile.resumeUrl && (
-                  <a href={profile.resumeUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-brand-cyan">
-                    View current resume
-                  </a>
-                )}
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium">Profile Picture</label>
-                <input type="file" accept="image/*" onChange={(e) => handleUpload(e, "profile")} />
-              </div>
+            <div className="rounded-xl border border-brand-cyan/20 bg-brand-cyan/5 p-4 text-sm text-brand-slate">
+              Resumes are not stored on your profile. When you apply for a job, choose to auto-generate a PDF from this profile or upload a custom resume for that application only.
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium">Profile Picture</label>
+              <input type="file" accept="image/*" onChange={handleUpload} />
             </div>
 
             <Button onClick={saveProfile} disabled={saving}>

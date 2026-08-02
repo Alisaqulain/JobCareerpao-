@@ -16,6 +16,7 @@ import {
   exportApplicationsExcel,
 } from "@/lib/services/archive.service";
 import { validateCsrfOrigin } from "@/lib/utils/crypto";
+import type { ApplicationStatus } from "@/types";
 
 export async function GET(request: NextRequest) {
   const { error } = await requireAdmin();
@@ -82,7 +83,7 @@ export async function PATCH(request: NextRequest) {
     if (bulkParsed.success) {
       const results = await bulkUpdateApplicationStatus(
         bulkParsed.data.applicationIds,
-        bulkParsed.data.status as "pending" | "selected" | "rejected",
+        bulkParsed.data.status as ApplicationStatus,
         bulkParsed.data.adminNotes
       );
       return successResponse(results, "Applications updated");
@@ -98,7 +99,7 @@ export async function PATCH(request: NextRequest) {
 
     const application = await updateApplicationStatus(
       applicationId,
-      parsed.data.status as "pending" | "selected" | "rejected",
+      parsed.data.status as ApplicationStatus,
       parsed.data.adminNotes
     );
 

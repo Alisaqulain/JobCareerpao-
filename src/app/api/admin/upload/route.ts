@@ -20,13 +20,16 @@ export async function POST(request: NextRequest) {
     if (!ALLOWED.includes(file.type)) return errorResponse("Only JPEG, PNG, WebP, GIF allowed", 400);
     if (file.size > MAX_SIZE) return errorResponse("Image must be 5MB or smaller", 400);
 
-    const folder = type === "blog" ? "blogs" : "companies";
+    const folder =
+      type === "blog" ? "blogs" : type === "company-banner" ? "companies/banners" : "companies";
     const buffer = Buffer.from(await file.arrayBuffer());
     const filename = sanitizeFilename(`${user!.id}_${Date.now()}_${file.name}`);
 
-    const result = await uploadImage(buffer, filename, folder, [
-      { width: 1200, height: 1200, crop: "limit" },
-    ]);
+    const transforms =
+      type === "company-banner"
+        ? [{ width: 1600, height: 480, crop: "fill" as const }]
+        : [{ width: 1200, height: 1200, crop: "limit" as const }];
+    const result = await uploadImage(buffer, filename, folder, transforms);
 
     return successResponse(
       { url: result.url, publicId: result.publicId },

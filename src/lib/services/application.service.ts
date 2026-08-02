@@ -1,8 +1,9 @@
 import { connectDB } from "@/lib/db/mongoose";
 import { Application } from "@/models/Application";
 import { User } from "@/models/User";
-import { sendApplicationStatusEmail } from "@/lib/services/email.service";
+import type { ApplicationStatus } from "@/types";
 import { getPagination, parseSort } from "@/lib/utils/crypto";
+import { sendApplicationStatusEmail } from "@/lib/services/email.service";
 
 export async function listApplications(params: {
   page?: number;
@@ -10,24 +11,35 @@ export async function listApplications(params: {
   search?: string;
   status?: string;
   jobId?: string;
+  companyName?: string;
+  dateFrom?: string;
+  dateTo?: string;
   sort?: string;
   order?: "asc" | "desc";
   userId?: string;
+  paymentStatus?: string;
 }) {
   await connectDB();
   const page = params.page || 1;
   const limit = params.limit || 20;
   const skip = (page - 1) * limit;
 
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { paymentStatus: params.paymentStatus || "paid" };
   if (params.status) filter.status = params.status;
   if (params.jobId) filter.jobId = params.jobId;
+  if (params.companyName) {
+    filter.companyName = { $regex: params.companyName, $options: "i" };
+  }
   if (params.userId) filter.userId = params.userId;
-
-  let query = Application.find(filter)
-    .populate("userId", "name email phone education experience skills")
-    .populate("jobId", "title company applicationFee")
-    .sort(parseSort(params.sort || "appliedDate", params.order));
+  if (params.dateFrom || params.dateTo) {
+    filter.appliedDate = {};
+    if (params.dateFrom) {
+      (filter.appliedDate as Record<string, Date>).$gte = new Date(params.dateFrom);
+    }
+    if (params.dateTo) {
+      (filter.appliedDate as Record<string, Date>).$lte = new Date(params.dateTo);
+    }
+  }
 
   if (params.search) {
     const users = await User.find({
@@ -38,11 +50,13 @@ export async function listApplications(params: {
       ],
     }).select("_id");
     filter.userId = { $in: users.map((u) => u._id) };
-    query = Application.find(filter)
-      .populate("userId", "name email phone education experience skills")
-      .populate("jobId", "title company applicationFee")
-      .sort(parseSort(params.sort || "appliedDate", params.order));
   }
+
+  const sort = parseSort(params.sort || "appliedDate", params.order || "desc");
+  const query = Application.find(filter)
+    .populate("userId", "name email phone education experience skills languages address")
+    .populate("jobId", "title company applicationFee companyId")
+    .sort(sort);
 
   const [applications, total] = await Promise.all([
     query.skip(skip).limit(limit).lean(),
@@ -54,7 +68,7 @@ export async function listApplications(params: {
 
 export async function updateApplicationStatus(
   applicationId: string,
-  status: "pending" | "selected" | "rejected",
+  status: ApplicationStatus,
   adminNotes?: string
 ) {
   await connectDB();
@@ -64,15 +78,23 @@ export async function updateApplicationStatus(
   if (!application) throw new Error("Application not found");
 
   const prevStatus = application.status;
-  application.status = status;
+  application.status = status === "pending" ? "applied" : status;
+  if (status === "archived") {
+    application.archivedAt = new Date();
+  }
   if (adminNotes !== undefined) application.adminNotes = adminNotes;
   await application.save();
 
-  if (prevStatus !== status) {
+  if (prevStatus !== application.status) {
     const user = application.userId as unknown as { name: string; email: string };
     const job = application.jobId as unknown as { title: string };
-    if (user?.email) {
-      await sendApplicationStatusEmail(user.email, user.name, job.title, status);
+    if (user?.email && ["selected", "rejected"].includes(application.status)) {
+      await sendApplicationStatusEmail(
+        user.email,
+        user.name,
+        job.title,
+        application.status === "selected" ? "selected" : "rejected"
+      );
     }
   }
 
@@ -81,7 +103,7 @@ export async function updateApplicationStatus(
 
 export async function bulkUpdateApplicationStatus(
   applicationIds: string[],
-  status: "pending" | "selected" | "rejected",
+  status: ApplicationStatus,
   adminNotes?: string
 ) {
   const results = [];
@@ -93,52 +115,85 @@ export async function bulkUpdateApplicationStatus(
 
 export async function getUserApplications(userId: string) {
   await connectDB();
-  return Application.find({ userId })
+  return Application.find({ userId, paymentStatus: "paid" })
     .populate("jobId", "title company location status applicationFee lastDate")
     .sort({ appliedDate: -1 })
     .lean();
 }
 
-export async function exportApplicationsCsv(applications: Array<Record<string, unknown>>) {
-  const headers = ["Name", "Email", "Job", "Company", "Status", "Applied Date"];
-  const rows = applications.map((a) => {
-    const user = a.userId as { name?: string; email?: string };
-    const job = a.jobId as { title?: string; company?: string };
-    return [
-      user?.name || "",
-      user?.email || "",
-      job?.title || "",
-      job?.company || "",
-      a.status,
-      a.appliedDate ? new Date(String(a.appliedDate)).toISOString() : "",
-    ];
-  });
-  return [headers, ...rows].map((r) => r.join(",")).join("\n");
+export async function findExportableApplications(params: {
+  applicationIds?: string[];
+  exportAll?: boolean;
+}) {
+  await connectDB();
+
+  const filter: Record<string, unknown> = { paymentStatus: "paid" };
+
+  if (params.applicationIds?.length) {
+    filter._id = { $in: params.applicationIds };
+  } else if (!params.exportAll) {
+    throw new Error("Nothing selected for export");
+  }
+
+  return Application.find(filter)
+    .populate("userId", "name email phone education experience skills languages address")
+    .populate("jobId", "title company")
+    .sort({ appliedDate: -1 })
+    .lean();
 }
 
-export async function exportApplicationsExcel(applications: Array<Record<string, unknown>>) {
-  const ExcelJS = (await import("exceljs")).default;
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Applications");
-  sheet.columns = [
-    { header: "Name", key: "name", width: 20 },
-    { header: "Email", key: "email", width: 28 },
-    { header: "Job", key: "job", width: 24 },
-    { header: "Company", key: "company", width: 20 },
-    { header: "Status", key: "status", width: 12 },
-    { header: "Applied Date", key: "appliedDate", width: 22 },
-  ];
-  for (const a of applications) {
-    const user = a.userId as { name?: string; email?: string };
-    const job = a.jobId as { title?: string; company?: string };
-    sheet.addRow({
-      name: user?.name || "",
-      email: user?.email || "",
-      job: job?.title || "",
-      company: job?.company || "",
-      status: a.status,
-      appliedDate: a.appliedDate ? new Date(String(a.appliedDate)).toISOString() : "",
-    });
+export async function findArchivedApplications(params: {
+  applicationIds?: string[];
+  exportAll?: boolean;
+  filters?: {
+    jobId?: string;
+    companyName?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  };
+}) {
+  const filter: Record<string, unknown> = {
+    paymentStatus: "paid",
+    status: "archived",
+  };
+
+  if (params.applicationIds?.length) {
+    filter._id = { $in: params.applicationIds };
+  } else if (!params.exportAll) {
+    throw new Error("Select applications or choose export all for archived records");
   }
-  return workbook.xlsx.writeBuffer();
+
+  if (params.filters?.jobId) filter.jobId = params.filters.jobId;
+  if (params.filters?.companyName) {
+    filter.companyName = { $regex: params.filters.companyName, $options: "i" };
+  }
+  if (params.filters?.dateFrom || params.filters?.dateTo) {
+    filter.appliedDate = {};
+    if (params.filters.dateFrom) {
+      (filter.appliedDate as Record<string, Date>).$gte = new Date(params.filters.dateFrom);
+    }
+    if (params.filters.dateTo) {
+      (filter.appliedDate as Record<string, Date>).$lte = new Date(params.filters.dateTo);
+    }
+  }
+
+  if (params.filters?.search) {
+    const users = await User.find({
+      $or: [
+        { name: { $regex: params.filters.search, $options: "i" } },
+        { email: { $regex: params.filters.search, $options: "i" } },
+        { phone: { $regex: params.filters.search, $options: "i" } },
+      ],
+    }).select("_id");
+    filter.userId = { $in: users.map((u) => u._id) };
+  }
+
+  await connectDB();
+  return Application.find(filter)
+    .populate("userId", "name email phone education experience skills languages address")
+    .populate("jobId", "title company")
+    .sort({ appliedDate: -1 })
+    .lean();
 }

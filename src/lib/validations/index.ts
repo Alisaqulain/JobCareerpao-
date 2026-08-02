@@ -1,6 +1,12 @@
 import { z } from "zod";
 import type { ZodError } from "zod";
 import { JOB_TYPES, JOB_STATUSES, APPLICATION_STATUSES } from "@/lib/constants";
+import {
+  COMPANY_CATEGORIES,
+  COMPANY_SIZES,
+  HIRING_STATUSES,
+  VERIFICATION_STATUSES,
+} from "@/lib/constants/companies";
 
 export function formatZodError(error: ZodError): string {
   return error.issues[0]?.message || "Please check your input and try again.";
@@ -107,12 +113,76 @@ export const profileUpdateSchema = z.object({
   phone: z.string().min(10).max(15).optional(),
   bio: z.string().max(1000).optional(),
   location: z.string().max(200).optional(),
+  address: z
+    .object({
+      line1: z.string().max(300).optional(),
+      city: z.string().max(100).optional(),
+      state: z.string().max(100).optional(),
+      pincode: z.string().max(12).optional(),
+      country: z.string().max(100).optional(),
+    })
+    .optional(),
+  languages: z.array(z.string()).max(20).optional(),
   skills: z.array(z.string()).max(50).optional(),
   education: z.array(educationSchema).optional(),
   experience: z.array(experienceSchema).optional(),
   profilePicture: z.string().url().optional(),
-  resumeUrl: z.string().url().optional(),
   certificates: z.array(certificateSchema).optional(),
+});
+
+
+export const createOrderSchema = z.object({
+  jobId: z.string().min(1),
+  formAnswers: z.record(z.string(), z.unknown()),
+  resumeType: z.enum(["generated", "uploaded"]),
+  resumeUrl: z.string().url().optional(),
+  resumePublicId: z.string().optional(),
+  coverLetter: z.string().max(5000).optional(),
+}).superRefine((data, ctx) => {
+  if (data.resumeType === "uploaded" && (!data.resumeUrl || !data.resumePublicId)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Please upload a resume for this application",
+      path: ["resumeUrl"],
+    });
+  }
+});
+
+export const verifyPaymentSchema = createOrderSchema.extend({
+  razorpayOrderId: z.string().min(1),
+  razorpayPaymentId: z.string().min(1),
+  razorpaySignature: z.string().min(1),
+});
+
+export const archiveExportSchema = z.object({
+  applicationIds: z.array(z.string()).optional(),
+  exportAll: z.boolean().optional(),
+  filters: z
+    .object({
+      jobId: z.string().optional(),
+      companyName: z.string().optional(),
+      status: z.string().optional(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+      search: z.string().optional(),
+    })
+    .optional(),
+});
+
+export const archiveDeleteSchema = z.object({
+  applicationIds: z.array(z.string()).min(1),
+  confirm: z.literal(true, { message: "Confirmation required" }),
+});
+
+export const storageCleanupSchema = z.object({
+  action: z.enum([
+    "delete_rejected",
+    "delete_expired_jobs",
+    "delete_orphans",
+    "delete_temp",
+    "archive_old_rejected",
+  ]),
+  confirm: z.literal(true, { message: "Confirmation required" }),
 });
 
 export const createJobSchema = z.object({
@@ -143,14 +213,37 @@ export const createJobBodySchema = createJobSchema.refine((d) => d.companyId || 
 });
 
 export const companySchema = z.object({
-  name: z.string().min(2).max(200),
+  name: z.string().min(2, "Company name must be at least 2 characters").max(200),
   logoUrl: optionalUrl,
   logoPublicId: optionalString,
-  industry: z.string().min(2).max(100),
-  description: z.string().min(10).max(2000),
-  headquarters: z.string().min(2).max(200),
-  founded: optionalString,
-  employeeCount: z.preprocess(emptyToUndefined, z.string().max(50).optional()),
+  bannerUrl: optionalUrl,
+  bannerPublicId: optionalString,
+  category: z.enum(COMPANY_CATEGORIES as unknown as [string, ...string[]], {
+    message: "Select a valid company category",
+  }),
+  industry: z.string().min(2, "Industry is required").max(100),
+  description: z.string().min(10, "Description must be at least 10 characters").max(5000),
+  website: optionalUrl,
+  email: z.preprocess(emptyToUndefined, z.string().email("Invalid email").optional()),
+  phone: optionalString,
+  hrContactPerson: optionalString,
+  headOffice: z.string().min(2, "Head office address is required").max(300),
+  headquarters: optionalString,
+  city: z.string().min(2, "City is required").max(100),
+  state: z.string().min(2, "State is required").max(100),
+  country: z.string().min(2).max(100).default("India"),
+  pincode: optionalString,
+  foundedYear: optionalString,
+  companySize: z.preprocess(
+    emptyToUndefined,
+    z.enum(COMPANY_SIZES as unknown as [string, ...string[]]).optional()
+  ),
+  hiringStatus: z.enum(HIRING_STATUSES as unknown as [string, ...string[]]).default("active"),
+  verificationStatus: z
+    .enum(VERIFICATION_STATUSES as unknown as [string, ...string[]])
+    .default("pending"),
+  metaTitle: optionalString,
+  metaDescription: z.preprocess(emptyToUndefined, z.string().max(160).optional()),
   color: z.string().max(20).optional(),
   isActive: z.boolean().optional(),
 });
@@ -198,21 +291,6 @@ export const bulkApplicationStatusSchema = z.object({
   applicationIds: z.array(z.string()).min(1),
   status: z.enum(APPLICATION_STATUSES as unknown as [string, ...string[]]),
   adminNotes: z.string().max(2000).optional(),
-});
-
-export const createOrderSchema = z.object({
-  jobId: z.string().min(1),
-  formAnswers: z.record(z.string(), z.unknown()),
-  resumeUrl: z.string().url(),
-});
-
-export const verifyPaymentSchema = z.object({
-  jobId: z.string().min(1),
-  razorpayOrderId: z.string().min(1),
-  razorpayPaymentId: z.string().min(1),
-  razorpaySignature: z.string().min(1),
-  formAnswers: z.record(z.string(), z.unknown()),
-  resumeUrl: z.string().url(),
 });
 
 export const paginationSchema = z.object({
