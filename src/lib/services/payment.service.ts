@@ -25,7 +25,7 @@ import { PAYMENT_GATEWAY } from "@/lib/constants";
 import { logger } from "@/lib/utils/logger";
 import { resolveApplicationResume } from "@/lib/services/resume.service";
 import { incrementApplicationsAllTime } from "@/lib/services/analytics.service";
-import { isProfileReadyForApplication } from "@/lib/resume/profile";
+import { isProfileReadyForApply } from "@/lib/resume/profile";
 import type { ResumeType } from "@/types";
 import ExcelJS from "exceljs";
 
@@ -59,8 +59,11 @@ export async function createPaymentOrder(params: {
 
   const user = await User.findById(params.userId);
   if (!user) throw new Error("User not found");
-  if (!isProfileReadyForApplication(user)) {
-    throw new Error("Please complete your profile (skills, education, experience) before applying");
+  if (!isProfileReadyForApply(user, params.resumeType)) {
+    if (params.resumeType === "uploaded") {
+      throw new Error("Please add your name and phone in your profile before applying");
+    }
+    throw new Error("Please complete your profile (skills, education, experience) for auto-generated resume");
   }
   if (params.resumeType === "uploaded" && (!params.resumeUrl || !params.resumePublicId)) {
     throw new Error("Please upload a resume for this application");

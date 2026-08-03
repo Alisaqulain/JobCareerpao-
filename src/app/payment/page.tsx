@@ -35,6 +35,7 @@ function PaymentContent() {
   const jobId = searchParams.get("jobId");
   const paymentId = searchParams.get("paymentId");
   const [order, setOrder] = useState<OrderDetails | null>(null);
+  const [userPhone, setUserPhone] = useState("");
   const [paying, setPaying] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
 
@@ -71,6 +72,10 @@ function PaymentContent() {
         toast.error(err instanceof Error ? err.message : "Could not load payment order");
         router.replace("/jobs");
       });
+
+    api<{ phone?: string }>("/api/user/profile").then((res) => {
+      if (res.data?.phone) setUserPhone(res.data.phone);
+    });
   }, [status, orderId, jobId, paymentId, router]);
 
   const openCheckout = useCallback(async () => {
@@ -106,6 +111,7 @@ function PaymentContent() {
         prefill: {
           name: session?.user?.name || "",
           email: session?.user?.email || "",
+          contact: userPhone.replace(/\D/g, "").slice(-10) || undefined,
         },
         notes: {
           job_id: jobId,
@@ -166,7 +172,7 @@ function PaymentContent() {
     } finally {
       setPaying(false);
     }
-  }, [order, jobId, session, router]);
+  }, [order, jobId, session, userPhone, router]);
 
   if (!order) {
     return (

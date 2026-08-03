@@ -5,6 +5,7 @@ import { profileUpdateSchema } from "@/lib/validations";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
 import { validateCsrfOrigin } from "@/lib/utils/crypto";
+import { canGenerateProfileResume, hasMinimumApplyProfile } from "@/lib/resume/profile";
 
 export async function GET() {
   const { user, error } = await requireUser();
@@ -14,15 +15,10 @@ export async function GET() {
   const profile = await User.findById(user!.id).select("-password").lean();
   if (!profile) return errorResponse("User not found", 404);
 
-  const profileComplete = Boolean(
-    profile.name &&
-      profile.phone &&
-      profile.skills?.length &&
-      profile.education?.length &&
-      profile.experience?.length
-  );
+  const profileComplete = hasMinimumApplyProfile(profile);
+  const canGenerateResume = canGenerateProfileResume(profile);
 
-  return successResponse({ ...profile, profileComplete });
+  return successResponse({ ...profile, profileComplete, canGenerateResume });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -41,21 +37,27 @@ export async function PATCH(request: NextRequest) {
     }
 
     await connectDB();
+    const existing = await User.findById(user!.id);
+    if (!existing) return errorResponse("User not found", 404);
+
     const update = parsed.data;
-    const profileComplete =
-      Boolean(update.name || user!.name) &&
-      Boolean(update.phone) &&
-      Boolean(update.skills?.length) &&
-      Boolean(update.education?.length) &&
-      Boolean(update.experience?.length);
+    const merged = {
+      name: update.name ?? existing.name,
+      phone: update.phone ?? existing.phone,
+      skills: update.skills ?? existing.skills,
+      education: update.education ?? existing.education,
+      experience: update.experience ?? existing.experience,
+    };
+    const profileComplete = hasMinimumApplyProfile(merged);
+    const canGenerateResume = canGenerateProfileResume(merged);
 
-    const profile = await User.findByIdAndUpdate(
-      user!.id,
-      { ...update, profileComplete },
-      { new: true, runValidators: true }
-    ).select("-password");
+    existing.set({ ...update, profileComplete });
+    await existing.save();
 
-    return successResponse(profile, "Profile updated");
+    const profile = existing.toObject();
+    delete (profile as { password?: string }).password;
+
+    return successResponse({ ...profile, profileComplete, canGenerateResume }, "Profile updated");
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : "Update failed", 400);
   }

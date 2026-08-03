@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -35,6 +35,7 @@ interface ProfileData {
   education: unknown[];
   experience: unknown[];
   profileComplete: boolean;
+  canGenerateResume?: boolean;
 }
 
 export default function ApplyJobPage() {
@@ -45,11 +46,12 @@ export default function ApplyJobPage() {
   const [job, setJob] = useState<JobDetail | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const [resumeType, setResumeType] = useState<ResumeType>("generated");
+  const [resumeType, setResumeType] = useState<ResumeType>("uploaded");
   const [resumeUrl, setResumeUrl] = useState<string>();
   const [resumePublicId, setResumePublicId] = useState<string>();
   const [coverLetter, setCoverLetter] = useState("");
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -96,17 +98,30 @@ export default function ApplyJobPage() {
     }
   };
 
+  const selectUploadedResume = () => {
+    setResumeType("uploaded");
+    if (!resumeUrl) {
+      setTimeout(() => fileInputRef.current?.click(), 0);
+    }
+  };
+
   const handleContinue = () => {
     if (!job || !profile) return;
 
     if (!profile.profileComplete) {
-      toast.error("Please complete your profile (skills, education, experience) before applying");
+      toast.error("Please add your name and phone in your profile before applying");
       router.push(`/profile?redirect=/jobs/${jobId}/apply`);
+      return;
+    }
+
+    if (resumeType === "generated" && !profile.canGenerateResume) {
+      toast.error("For auto-generated PDF, add skills, education, and experience in your profile — or upload your own resume instead");
       return;
     }
 
     if (resumeType === "uploaded" && (!resumeUrl || !resumePublicId)) {
       toast.error("Please upload a resume for this application");
+      fileInputRef.current?.click();
       return;
     }
 
@@ -155,12 +170,27 @@ export default function ApplyJobPage() {
             <div className="mt-4 flex items-start gap-3 rounded-xl bg-brand-orange/10 p-4 text-sm">
               <AlertCircle className="h-5 w-5 shrink-0 text-brand-orange" />
               <div>
-                <p className="font-medium text-brand-dark dark:text-white">Complete your profile</p>
+                <p className="font-medium text-brand-dark dark:text-white">Add name and phone</p>
                 <p className="text-brand-slate">
-                  Add skills, education, and experience. Resumes are generated or uploaded per application — not saved on your profile.
+                  We need your name and phone number to submit any application.
                 </p>
                 <Link href={`/profile?redirect=/jobs/${jobId}/apply`} className="mt-1 inline-block text-brand-blue font-semibold">
                   Go to Profile →
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {profile.profileComplete && resumeType === "generated" && !profile.canGenerateResume && (
+            <div className="mt-4 flex items-start gap-3 rounded-xl bg-brand-orange/10 p-4 text-sm">
+              <AlertCircle className="h-5 w-5 shrink-0 text-brand-orange" />
+              <div>
+                <p className="font-medium text-brand-dark dark:text-white">Profile needed for auto PDF</p>
+                <p className="text-brand-slate">
+                  Option A needs skills, education, and experience in your profile. Or choose Option B to upload your own resume.
+                </p>
+                <Link href={`/profile?redirect=/jobs/${jobId}/apply`} className="mt-1 inline-block text-brand-blue font-semibold">
+                  Complete profile →
                 </Link>
               </div>
             </div>
@@ -191,7 +221,7 @@ export default function ApplyJobPage() {
 
               <button
                 type="button"
-                onClick={() => setResumeType("uploaded")}
+                onClick={selectUploadedResume}
                 className={`rounded-xl border p-4 text-left transition ${
                   resumeType === "uploaded"
                     ? "border-brand-blue bg-brand-blue/5"
@@ -204,6 +234,15 @@ export default function ApplyJobPage() {
               </button>
             </div>
 
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="hidden"
+              onChange={handleResumeUpload}
+              disabled={uploading}
+            />
+
             {resumeType === "uploaded" && (
               <div className="mt-4">
                 {resumeUrl ? (
@@ -215,19 +254,27 @@ export default function ApplyJobPage() {
                         Preview uploaded file
                       </a>
                     </div>
-                    <label className="cursor-pointer text-xs font-semibold text-brand-blue">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs font-semibold text-brand-blue"
+                      disabled={uploading}
+                    >
                       Replace
-                      <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} disabled={uploading} />
-                    </label>
+                    </button>
                   </div>
                 ) : (
-                  <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 p-8 hover:border-brand-cyan">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 p-8 hover:border-brand-cyan disabled:opacity-60"
+                  >
                     <Upload className="h-8 w-8 text-brand-slate" />
                     <span className="text-sm font-medium text-brand-slate">
-                      {uploading ? "Uploading..." : "Upload Resume (PDF/DOC/DOCX)"}
+                      {uploading ? "Uploading..." : "Click to upload resume (PDF/DOC/DOCX)"}
                     </span>
-                    <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} disabled={uploading} />
-                  </label>
+                  </button>
                 )}
               </div>
             )}

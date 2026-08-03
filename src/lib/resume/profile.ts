@@ -55,12 +55,27 @@ export function formatAddress(user: IUser): string {
   return user.location || "";
 }
 
-export function isProfileReadyForApplication(user: IUser) {
+export function hasMinimumApplyProfile(user: Pick<IUser, "name" | "phone">) {
+  return Boolean(user.name?.trim() && user.phone?.trim());
+}
+
+export function canGenerateProfileResume(
+  user: Pick<IUser, "name" | "phone" | "skills" | "education" | "experience">
+) {
   return Boolean(
-    user.name?.trim() &&
-      user.phone?.trim() &&
+    hasMinimumApplyProfile(user) &&
       user.skills?.length &&
       user.education?.length &&
       user.experience?.length
   );
+}
+
+export function isProfileReadyForApplication(user: IUser) {
+  return canGenerateProfileResume(user);
+}
+
+export function isProfileReadyForApply(user: IUser, resumeType: ResumeType) {
+  if (!hasMinimumApplyProfile(user)) return false;
+  if (resumeType === "uploaded") return true;
+  return canGenerateProfileResume(user);
 }

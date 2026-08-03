@@ -28,6 +28,7 @@ interface ProfileData {
   experience: Array<{ title: string; company: string; startDate: string; endDate?: string; current?: boolean }>;
   profilePicture?: string;
   profileComplete: boolean;
+  canGenerateResume?: boolean;
 }
 
 export default function ProfilePage() {
@@ -38,6 +39,8 @@ export default function ProfilePage() {
   const [payments, setPayments] = useState<Array<Record<string, unknown>>>([]);
   const [tab, setTab] = useState<"profile" | "applications" | "payments">("profile");
   const [saving, setSaving] = useState(false);
+  const [skillsText, setSkillsText] = useState("");
+  const [languagesText, setLanguagesText] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -46,7 +49,11 @@ export default function ProfilePage() {
     }
     if (status === "authenticated") {
       api<ProfileData>("/api/user/profile").then((res) => {
-        if (res.data) setProfile(res.data);
+        if (res.data) {
+          setProfile(res.data);
+          setSkillsText((res.data.skills || []).join(", "));
+          setLanguagesText((res.data.languages || []).join(", "));
+        }
       });
       api<Array<Record<string, unknown>>>("/api/user/applications").then((res) => {
         if (res.data) setApplications(res.data);
@@ -86,14 +93,15 @@ export default function ProfilePage() {
           bio: profile.bio,
           location: profile.location,
           address: profile.address,
-          languages: profile.languages,
-          skills: profile.skills,
+          languages: languagesText.split(",").map((s) => s.trim()).filter(Boolean),
+          skills: skillsText.split(",").map((s) => s.trim()).filter(Boolean),
           education: profile.education,
           experience: profile.experience,
           profilePicture: profile.profilePicture,
         },
       });
       if (!res.success) throw new Error(res.message);
+      if (res.data) setProfile(res.data as ProfileData);
       toast.success("Profile saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");
@@ -122,7 +130,7 @@ export default function ProfilePage() {
           </div>
           {!profile.profileComplete && (
             <span className="rounded-xl bg-brand-orange/10 px-3 py-1 text-xs font-semibold text-brand-orange">
-              Complete your profile to apply faster
+              Add name and phone to apply
             </span>
           )}
         </div>
@@ -169,26 +177,18 @@ export default function ProfilePage() {
                 <label className="mb-1 block text-sm font-medium">Skills (comma separated)</label>
                 <input
                   className={inputClass}
-                  value={profile.skills.join(", ")}
-                  onChange={(e) =>
-                    setProfile({
-                      ...profile,
-                      skills: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                    })
-                  }
+                  value={skillsText}
+                  onChange={(e) => setSkillsText(e.target.value)}
+                  placeholder="e.g. JavaScript, React, Node.js"
                 />
               </div>
               <div className="md:col-span-2">
                 <label className="mb-1 block text-sm font-medium">Languages (comma separated)</label>
                 <input
                   className={inputClass}
-                  value={(profile.languages || []).join(", ")}
-                  onChange={(e) =>
-                    setProfile({
-                      ...profile,
-                      languages: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                    })
-                  }
+                  value={languagesText}
+                  onChange={(e) => setLanguagesText(e.target.value)}
+                  placeholder="e.g. English, Hindi"
                 />
               </div>
               <div className="md:col-span-2">
