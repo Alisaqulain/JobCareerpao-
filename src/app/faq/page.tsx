@@ -1,11 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildPageMetadata, faqPageJsonLd } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "FAQ",
-  description: "Frequently asked questions about JobCareerPao — applications, payments, and accounts.",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "FAQ — Job Applications, Payments & Account Help",
+  description:
+    "Answers to common questions about JobCareerPao — how to apply for jobs, payment methods, profile setup, refunds, and account support.",
+  path: "/faq",
+  keywords: [
+    "JobCareerPao FAQ",
+    "how to apply for jobs online",
+    "job application payment help",
+    "Razorpay job fee",
+    "job portal help India",
+  ],
+});
 
 const faqSections = [
   {
@@ -74,9 +85,14 @@ const faqSections = [
   },
 ];
 
+const allFaqItems = faqSections.flatMap((section) =>
+  section.items.map((item) => ({ question: item.q, answer: item.a }))
+);
+
 export default function FaqPage() {
   return (
     <div className="bg-brand-gray min-h-screen">
+      <JsonLd data={faqPageJsonLd(allFaqItems)} />
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8 text-center">
           <h1 className="font-display text-3xl font-bold text-brand-dark sm:text-4xl">

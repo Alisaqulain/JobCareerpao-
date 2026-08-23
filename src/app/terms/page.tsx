@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Terms of Service" };
+export const metadata: Metadata = buildPageMetadata({
+  title: "Terms of Service — JobCareerPao",
+  description: "Terms of service for using JobCareerPao job portal — account rules, application fees, payments, and user responsibilities.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

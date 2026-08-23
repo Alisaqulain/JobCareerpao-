@@ -1,10 +1,12 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import SignupForm from "./SignupForm";
+import { NO_INDEX } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Candidate Signup",
   description: "Create your JobCareerPao candidate account and start applying to verified jobs.",
+  robots: NO_INDEX,
 };
 
 export default function SignupPage() {

@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, User } from "lucide-react";
 import { blogPosts, getBlogPost } from "@/lib/blog";
 import { BlogArticle } from "@/components/blog/BlogArticle";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { absoluteUrl, blogPostingJsonLd, breadcrumbJsonLd, buildPageMetadata } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -16,10 +18,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = getBlogPost(slug);
-  return {
-    title: post?.title || "Blog",
-    description: post?.excerpt,
-  };
+  if (!post) return { title: "Blog" };
+  return buildPageMetadata({
+    title: post.title,
+    description: post.excerpt,
+    path: `/blog/${slug}`,
+    keywords: [post.category, "career advice", "job tips India", "JobCareerPao blog"],
+    type: "article",
+  });
 }
 
 export default async function BlogPostPage({ params }: Props) {
@@ -28,9 +34,26 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   const related = blogPosts.filter((p) => p.slug !== slug && p.category === post.category).slice(0, 3);
+  const postUrl = absoluteUrl(`/blog/${slug}`);
+
+  const schemas = [
+    blogPostingJsonLd({
+      title: post.title,
+      description: post.excerpt,
+      url: postUrl,
+      author: post.author,
+      datePublished: new Date(post.date).toISOString(),
+    }),
+    breadcrumbJsonLd([
+      { name: "Home", url: absoluteUrl("/") },
+      { name: "Blog", url: absoluteUrl("/blog") },
+      { name: post.title, url: postUrl },
+    ]),
+  ];
 
   return (
     <article className="bg-white">
+      <JsonLd data={schemas} />
       <div className="border-b border-slate-100 bg-gradient-to-br from-brand-blue via-[#0c5a9e] to-brand-cyan">
         <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
           <Link
@@ -51,7 +74,7 @@ export default async function BlogPostPage({ params }: Props) {
               <User className="h-3.5 w-3.5" />
               {post.author}
             </span>
-            <span>{post.date}</span>
+            <time dateTime={new Date(post.date).toISOString()}>{post.date}</time>
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
               {post.readTime} read

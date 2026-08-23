@@ -13,6 +13,14 @@ import { CTASection } from "@/components/home/CTASection";
 import { listJobs } from "@/lib/services/job.service";
 import { listCompanies } from "@/lib/services/company.service";
 import { listBlogs } from "@/lib/services/blog.service";
+import type { Metadata } from "next";
+import { buildPageMetadata, DEFAULT_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+  description: DEFAULT_DESCRIPTION,
+  path: "/",
+});
 
 export const revalidate = 60;
 

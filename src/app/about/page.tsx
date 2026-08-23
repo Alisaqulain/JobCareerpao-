@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { Button } from "@/components/ui/Button";
 import { stats } from "@/lib/data";
 import { Users, Target, Shield, Zap } from "lucide-react";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "About Us",
-  description: "Learn about JobCareerPao — India's premium job portal for candidates.",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "About JobCareerPao — India's Verified Job Portal",
+  description:
+    "Learn about JobCareerPao — India's trusted job portal connecting candidates with verified IT, hospital, and corporate employers. Apply online with secure payments.",
+  path: "/about",
+});
 
 const values = [
   {

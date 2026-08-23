@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import OtpForm from "./OtpForm";
+import { NO_INDEX } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "OTP Verification",
+  robots: NO_INDEX,
 };
 
 export default function OtpPage() {

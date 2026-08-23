@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import LoginForm from "./LoginForm";
+import { NO_INDEX } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Candidate Login",
+  robots: NO_INDEX,
 };
 
 export default function CandidateLoginPage() {

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { successResponse, errorResponse } from "@/lib/utils/api-response";
-import { getJobById, getRelatedJobs } from "@/lib/services/job.service";
+import { getJobByIdOrSlug, getRelatedJobs } from "@/lib/services/job.service";
 import { getSessionUser } from "@/lib/auth/helpers";
 
 export async function GET(
@@ -11,7 +11,7 @@ export async function GET(
     const { id } = await params;
     const session = await getSessionUser();
     const isAdmin = session?.role === "admin";
-    const job = await getJobById(id, isAdmin);
+    const job = await getJobByIdOrSlug(id, isAdmin);
     const companyId = (job as Record<string, unknown>).companyId as
       | { _id?: string }
       | string

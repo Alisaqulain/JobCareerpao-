@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Refund Policy" };
+export const metadata: Metadata = buildPageMetadata({
+  title: "Refund Policy — JobCareerPao",
+  description: "JobCareerPao refund policy for job application fees — eligibility, process, and exceptions for paid applications.",
+  path: "/refund",
+});
 
 export default function RefundPage() {
   return (

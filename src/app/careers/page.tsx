@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/ui/Button";
 import { Heart, Coffee, Laptop, Globe } from "lucide-react";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Careers at JobCareerPao",
-  description: "Join the team building India's most trusted job portal for candidates.",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Careers at JobCareerPao — Join Our Team",
+  description: "Join the JobCareerPao team building India's most trusted job portal. View open positions and apply to work with us.",
+  path: "/careers",
+});
 
 const openings = [
   { title: "Senior Frontend Engineer", loc: "Bengaluru · Hybrid", dept: "Engineering", type: "Full-time" },

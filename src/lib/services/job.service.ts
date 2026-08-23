@@ -112,6 +112,20 @@ export async function getJobById(id: string, admin = false) {
   return attachCompanyLogo(job as unknown as Record<string, unknown>);
 }
 
+export async function getJobByIdOrSlug(idOrSlug: string, admin = false) {
+  await connectDB();
+  const isObjectId = /^[a-f\d]{24}$/i.test(idOrSlug);
+  const query = isObjectId ? { _id: idOrSlug } : { slug: idOrSlug };
+  const job = await Job.findOne(query)
+    .populate("companyId", "name logoUrl color slug industry headquarters website description")
+    .lean();
+  if (!job) throw new Error("Job not found");
+  if (!admin && (job.status !== "active" || new Date(job.lastDate) < new Date())) {
+    throw new Error("Job is not available");
+  }
+  return attachCompanyLogo(job as unknown as Record<string, unknown>);
+}
+
 export async function getRelatedJobs(jobId: string, companyId?: string, limit = 4) {
   await connectDB();
   const filter: Record<string, unknown> = {

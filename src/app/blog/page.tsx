@@ -2,11 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Clock, ArrowRight, User } from "lucide-react";
 import { blogPosts, getBlogCategories } from "@/lib/blog";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Career Blog",
-  description: "Career tips, resume advice, interview prep, salary guides, and industry news.",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Career Blog — Resume Tips, Interview Prep & Job Search Guides",
+  description:
+    "Read career advice for Indian job seekers — resume tips, ATS guides, interview preparation, salary insights, and industry news on JobCareerPao blog.",
+  path: "/blog",
+  keywords: [
+    "career tips India",
+    "resume tips",
+    "interview preparation",
+    "job search blog",
+    "ATS resume guide",
+    "salary guide India",
+  ],
+});
 
 const categoryColors: Record<string, string> = {
   "Career Tips": "bg-brand-blue/10 text-brand-blue",

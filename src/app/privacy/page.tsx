@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Privacy Policy" };
+export const metadata: Metadata = buildPageMetadata({
+  title: "Privacy Policy — JobCareerPao",
+  description: "JobCareerPao privacy policy — how we collect, use, and protect your personal data, resumes, and payment information.",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

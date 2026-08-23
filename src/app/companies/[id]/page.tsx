@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CompanyLogo } from "@/components/ui/CompanyLogo";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { formatSalary } from "@/lib/utils";
 import { getCompanyByIdOrSlug, getCompanyJobs } from "@/lib/services/company.service";
-import { DEFAULT_SITE_URL } from "@/lib/site";
+import { absoluteUrl, breadcrumbJsonLd, buildPageMetadata } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -26,15 +27,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { id } = await params;
     const company = await getCompanyByIdOrSlug(id, false);
-    return {
-      title: company.metaTitle || company.name,
-      description: company.metaDescription || company.description,
-      openGraph: {
-        title: company.metaTitle || company.name,
-        description: company.metaDescription || company.description,
-        images: company.bannerUrl || company.logoUrl ? [company.bannerUrl || company.logoUrl!] : undefined,
-      },
-    };
+    return buildPageMetadata({
+      title: company.metaTitle || `${company.name} Jobs & Careers — Hiring in ${company.city}`,
+      description:
+        company.metaDescription ||
+        `${company.name} is hiring in ${company.city}, ${company.state}. ${company.description?.slice(0, 120)}… View open jobs and apply on JobCareerPao.`,
+      path: `/companies/${company.slug || id}`,
+      keywords: [
+        `${company.name} jobs`,
+        `jobs at ${company.name}`,
+        `${company.industry} jobs`,
+        `hiring ${company.city}`,
+        "company careers India",
+      ],
+      ogImage: company.bannerUrl || company.logoUrl,
+    });
   } catch {
     return { title: "Company" };
   }
@@ -67,7 +74,7 @@ export default async function CompanyDetailPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: company.name,
-    url: company.website || `${DEFAULT_SITE_URL}/companies/${company.slug}`,
+    url: company.website || absoluteUrl(`/companies/${company.slug}`),
     logo: company.logoUrl,
     description: company.description,
     address: {
@@ -79,9 +86,15 @@ export default async function CompanyDetailPage({ params }: Props) {
     },
   };
 
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Home", url: absoluteUrl("/") },
+    { name: "Companies", url: absoluteUrl("/companies") },
+    { name: company.name, url: absoluteUrl(`/companies/${company.slug || id}`) },
+  ]);
+
   return (
     <div className="min-h-screen bg-brand-gray">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <JsonLd data={[jsonLd, breadcrumbs]} />
 
       <div className="relative border-b border-slate-200 bg-white">
         <div className="relative h-40 w-full overflow-hidden bg-gradient-to-r from-brand-blue to-brand-cyan sm:h-52">
