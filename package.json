@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed": "tsx scripts/seed-admin.ts",
     "seed:content": "tsx scripts/seed-content.ts",
-    "seed:companies": "tsx scripts/seedCompanies.ts"
+    "seed:companies": "tsx scripts/seedCompanies.ts",
+    "seed:jobs": "tsx scripts/seedJobs.ts"
   },
   "dependencies": {
     "archiver": "^8.0.0",

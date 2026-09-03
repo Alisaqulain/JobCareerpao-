@@ -84,7 +84,7 @@ async function seed() {
         location: j.location,
         jobType: j.type,
         mode: j.mode,
-        applicationFee: 99,
+        applicationFee: 199,
         lastDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: "active",
         dynamicFields: [
