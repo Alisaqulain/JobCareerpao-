@@ -9,8 +9,12 @@ import {
   verifyRazorpaySignature,
   verifyWebhookSignature,
   fetchRazorpayPayment,
+  validateRazorpayOrder,
+  createRazorpayPaymentLink,
+  verifyPaymentLinkSignature,
   getRazorpayKeyId,
 } from "@/lib/services/razorpay.service";
+import { getPaymentCallbackBaseUrl } from "@/lib/site";
 import {
   sendApplicationReceivedEmail,
   sendPaymentSuccessEmail,
@@ -77,6 +81,7 @@ export async function createPaymentOrder(params: {
   }
 
   const receipt = `job_${params.jobId}_${Date.now()}`.slice(0, 40);
+  const razorpayKeyId = getRazorpayKeyId();
 
   const order = await createRazorpayOrder({
     amount: fees.total,
@@ -105,6 +110,7 @@ export async function createPaymentOrder(params: {
       resumePublicId: params.resumePublicId,
       coverLetter: params.coverLetter,
       feeBreakdown: fees,
+      razorpayKeyId,
     },
   });
 
@@ -115,7 +121,7 @@ export async function createPaymentOrder(params: {
     baseAmount: fees.applicationFee,
     gstAmount: fees.gst,
     currency: "INR",
-    key: getRazorpayKeyId(),
+    key: razorpayKeyId,
     jobTitle: job.title,
     company: job.company,
     applyGst: fees.applyGst,
@@ -143,6 +149,28 @@ export async function getPaymentOrderDetails(
   if (!payment) throw new Error("Payment order not found");
   if (String(payment.userId) !== String(userId)) {
     throw new Error("Payment order not found");
+  }
+
+  if (payment.status === "cancelled" || payment.status === "failed") {
+    throw new Error("This payment session expired. Go back to review and create a new order.");
+  }
+  if (payment.status === "paid") {
+    throw new Error("This order is already paid.");
+  }
+
+  const metadata = payment.metadata as { razorpayKeyId?: string } | undefined;
+  const currentKey = getRazorpayKeyId();
+  if (metadata?.razorpayKeyId && metadata.razorpayKeyId !== currentKey) {
+    throw new Error(
+      "Razorpay keys were changed. Go back to review and create a fresh payment order."
+    );
+  }
+
+  try {
+    await validateRazorpayOrder(payment.razorpayOrderId, payment.amount);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invalid Razorpay order";
+    throw new Error(`${message} Go back to review and try again.`);
   }
 
   const job = payment.jobId as
@@ -173,6 +201,100 @@ export async function getPaymentOrderDetails(
     jobId: resolvedJobId,
     feeBreakdown: fees,
   };
+}
+
+export async function createPaymentLinkForOrder(params: {
+  orderId: string;
+  userId: string;
+  jobId: string;
+  customer: { name: string; email: string; phone: string };
+}) {
+  await connectDB();
+  const payment = await Payment.findOne({
+    razorpayOrderId: params.orderId,
+    userId: params.userId,
+    jobId: params.jobId,
+    status: "created",
+  }).populate("jobId", "title company");
+
+  if (!payment) throw new Error("Payment order not found or expired. Create a new order from review.");
+
+  const job = payment.jobId as { title?: string; company?: string } | null;
+  const baseUrl = getPaymentCallbackBaseUrl();
+  const callbackUrl =
+    `${baseUrl}/api/payments/link-callback?jobId=${params.jobId}&paymentId=${String(payment._id)}`;
+
+  const contact = params.customer.phone.replace(/\D/g, "").slice(-10);
+  const link = await createRazorpayPaymentLink({
+    amount: payment.amount,
+    description: `JobCareerPao — ${job?.title || "Job Application"} at ${job?.company || "Company"}`,
+    referenceId: String(payment._id),
+    callbackUrl,
+    customer: {
+      name: params.customer.name,
+      email: params.customer.email,
+      contact: contact.length === 10 ? contact : "9999999999",
+    },
+  });
+
+  payment.metadata = {
+    ...(payment.metadata as Record<string, unknown>),
+    paymentLinkId: link.id,
+    paymentLinkUrl: link.short_url,
+  };
+  await payment.save();
+
+  return { url: link.short_url, paymentLinkId: link.id };
+}
+
+export async function handlePaymentLinkCallback(params: {
+  userId: string;
+  jobId: string;
+  paymentId: string;
+  razorpayPaymentId: string;
+  razorpayPaymentLinkId: string;
+  razorpayPaymentLinkReferenceId: string;
+  razorpaySignature: string;
+}) {
+  const valid = verifyPaymentLinkSignature(
+    params.razorpayPaymentLinkId,
+    params.razorpayPaymentId,
+    params.razorpayPaymentLinkReferenceId,
+    params.razorpaySignature
+  );
+  if (!valid) throw new Error("Payment link verification failed — invalid signature");
+
+  await connectDB();
+  const payment = await Payment.findById(params.paymentId);
+  if (!payment || String(payment.userId) !== String(params.userId)) {
+    throw new Error("Payment record not found");
+  }
+  if (String(payment.jobId) !== String(params.jobId)) {
+    throw new Error("Payment job mismatch");
+  }
+
+  const metadata = payment.metadata as {
+    formAnswers?: Record<string, unknown>;
+    resumeType?: ResumeType;
+    resumeUrl?: string;
+    resumePublicId?: string;
+    coverLetter?: string;
+  };
+
+  return completePayment({
+    userId: params.userId,
+    jobId: params.jobId,
+    razorpayOrderId: payment.razorpayOrderId,
+    razorpayPaymentId: params.razorpayPaymentId,
+    razorpaySignature: params.razorpaySignature,
+    formAnswers: metadata?.formAnswers || {},
+    resumeType: metadata?.resumeType || "generated",
+    resumeUrl: metadata?.resumeUrl,
+    resumePublicId: metadata?.resumePublicId,
+    coverLetter: metadata?.coverLetter,
+    method: "payment_link",
+    skipSignatureCheck: true,
+  });
 }
 
 export async function verifyAndSubmitApplication(params: {

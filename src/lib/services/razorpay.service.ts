@@ -9,13 +9,17 @@ let cachedCredentials: string | null = null;
 const PLACEHOLDER_MARKERS = ["xxxxx", "YOUR_", "your_razorpay", "replace_me", "changeme"];
 export const RAZORPAY_MIN_AMOUNT_INR = 10;
 
+function trimEnv(value: string | undefined) {
+  return (value || "").trim();
+}
+
 function currentCredentials() {
-  return `${process.env.RAZORPAY_KEY_ID || ""}:${process.env.RAZORPAY_KEY_SECRET || ""}`;
+  return `${trimEnv(process.env.RAZORPAY_KEY_ID)}:${trimEnv(process.env.RAZORPAY_KEY_SECRET)}`;
 }
 
 export function assertRazorpayKeyPair() {
-  const serverKey = process.env.RAZORPAY_KEY_ID || "";
-  const publicKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || serverKey;
+  const serverKey = trimEnv(process.env.RAZORPAY_KEY_ID);
+  const publicKey = trimEnv(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) || serverKey;
   if (serverKey && publicKey && serverKey !== publicKey) {
     throw new Error(
       "RAZORPAY_KEY_ID and NEXT_PUBLIC_RAZORPAY_KEY_ID must be the same key pair."
@@ -50,8 +54,8 @@ function getRazorpay() {
   const credentials = currentCredentials();
   if (!razorpay || cachedCredentials !== credentials) {
     razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID!,
-      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+      key_id: trimEnv(process.env.RAZORPAY_KEY_ID)!,
+      key_secret: trimEnv(process.env.RAZORPAY_KEY_SECRET)!,
     });
     cachedCredentials = credentials;
   }
@@ -114,6 +118,61 @@ export async function fetchRazorpayPayment(paymentId: string) {
   return client.payments.fetch(paymentId);
 }
 
+export function verifyPaymentLinkSignature(
+  paymentLinkId: string,
+  paymentId: string,
+  referenceId: string,
+  signature: string
+): boolean {
+  const secret = trimEnv(process.env.RAZORPAY_KEY_SECRET);
+  if (!secret) return false;
+  const body = `${paymentLinkId}|${paymentId}|${referenceId}|paid`;
+  const expected = crypto.createHmac("sha256", secret).update(body).digest("hex");
+  return expected === signature;
+}
+
+export async function createRazorpayPaymentLink(params: {
+  amount: number;
+  description: string;
+  referenceId: string;
+  callbackUrl: string;
+  customer: { name: string; email: string; contact: string };
+}) {
+  const client = getRazorpay();
+  return client.paymentLink.create({
+    amount: Math.round(params.amount * 100),
+    currency: "INR",
+    description: params.description.slice(0, 255),
+    reference_id: params.referenceId.slice(0, 40),
+    customer: {
+      name: params.customer.name || "Candidate",
+      email: params.customer.email,
+      contact: params.customer.contact,
+    },
+    notify: { sms: false, email: false },
+    reminder_enable: false,
+    callback_url: params.callbackUrl,
+    callback_method: "get",
+  });
+}
+
+export async function fetchRazorpayOrder(orderId: string) {
+  const client = getRazorpay();
+  return client.orders.fetch(orderId);
+}
+
+export async function validateRazorpayOrder(orderId: string, expectedAmountInr: number) {
+  const order = await fetchRazorpayOrder(orderId);
+  const expectedPaise = Math.round(expectedAmountInr * 100);
+  if (Number(order.amount) !== expectedPaise) {
+    throw new Error("Payment order amount mismatch. Please create a new order from the review page.");
+  }
+  if (order.status === "paid") {
+    throw new Error("This order is already paid.");
+  }
+  return order;
+}
+
 export function getRazorpayKeyId() {
-  return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "";
+  return trimEnv(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) || trimEnv(process.env.RAZORPAY_KEY_ID);
 }

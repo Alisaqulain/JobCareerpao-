@@ -78,6 +78,22 @@ function PaymentContent() {
     });
   }, [status, orderId, jobId, paymentId, router]);
 
+  const openPaymentLink = async () => {
+    if (!order || !jobId) return;
+    setPaying(true);
+    try {
+      const res = await api<{ url: string }>("/api/payments/payment-link", {
+        method: "POST",
+        json: { orderId: order.orderId, jobId },
+      });
+      if (!res.data?.url) throw new Error(res.message || "Could not open Razorpay page");
+      window.location.href = res.data.url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not open payment page");
+      setPaying(false);
+    }
+  };
+
   const openCheckout = useCallback(async () => {
     if (!order || !jobId) return;
     const draft = getApplicationDraft(jobId);
@@ -163,7 +179,12 @@ function PaymentContent() {
       });
 
       rzp.on("payment.failed", (response) => {
-        toast.error(response.error?.description || "Payment failed. Try another method.");
+        const description = response.error?.description || "Payment failed. Try another method.";
+        if (description.toLowerCase().includes("no appropriate payment method")) {
+          toast.error("Checkout popup failed. Use the Razorpay hosted page button below.");
+        } else {
+          toast.error(description);
+        }
       });
 
       rzp.open();
@@ -188,9 +209,33 @@ function PaymentContent() {
     companyColor: order.companyColor,
   });
 
+  const isLiveKey = order.key.startsWith("rzp_live_");
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
   return (
     <div className="min-h-screen bg-brand-gray dark:bg-slate-950 py-10">
       <div className="mx-auto max-w-lg px-4">
+        {isLiveKey && isLocalhost && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Razorpay live keys on localhost</p>
+            <p className="mt-1">
+              Live checkout often fails on localhost. Use <strong>Test mode</strong> keys in{" "}
+              <code className="text-xs">.env.local</code> and restart the server.
+            </p>
+          </div>
+        )}
+        {!isLiveKey && isLocalhost && (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            <p className="font-semibold">Test mode active</p>
+            <p className="mt-1">
+              If the popup fails, use <strong>Pay on Razorpay Page</strong> below (recommended).
+              Test UPI: <code className="text-xs">success@razorpay</code> · Test card:{" "}
+              <code className="text-xs">4111 1111 1111 1111</code>
+            </p>
+          </div>
+        )}
         <div className="glass-strong rounded-2xl p-6 sm:p-8">
           <div className="flex items-center gap-2 text-brand-cyan">
             <Shield className="h-5 w-5" />
@@ -209,18 +254,27 @@ function PaymentContent() {
             <FeeBreakdown applicationFee={order.baseAmount} />
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col gap-3">
             <Button
-              onClick={openCheckout}
+              onClick={openPaymentLink}
               variant="orange"
               className="w-full"
               size="lg"
               disabled={paying || !scriptReady}
             >
               <CreditCard className="h-5 w-5" />
-              {paying ? "Opening checkout..." : `Pay ₹${order.amount.toFixed(2)}`}
+              {paying ? "Opening Razorpay..." : `Pay ₹${order.amount.toFixed(2)} on Razorpay Page`}
             </Button>
-            <p className="mt-3 text-center text-xs text-brand-slate">
+            <Button
+              onClick={openCheckout}
+              variant="outline"
+              className="w-full"
+              size="lg"
+              disabled={paying || !scriptReady}
+            >
+              Pay in popup (alternative)
+            </Button>
+            <p className="text-center text-xs text-brand-slate">
               UPI · Cards · Net Banking · Wallets accepted
             </p>
             {order.amount < 10 && (

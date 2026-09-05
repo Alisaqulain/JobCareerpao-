@@ -20,7 +20,7 @@ function CancelledContent() {
           Payment Cancelled
         </h1>
         <p className="mt-2 text-brand-slate">
-          You closed the payment window. No amount was charged.
+          You closed the payment window. No amount was charged. Start a <strong>new payment order</strong> from review — do not reuse an old order link.
         </p>
         {orderId && (
           <p className="mt-2 text-xs text-brand-slate">Order ID: {orderId}</p>
