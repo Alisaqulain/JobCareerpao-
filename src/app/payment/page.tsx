@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { CreditCard, Shield, Loader2 } from "lucide-react";
+import { CreditCard, Shield, Loader2, Lock, Smartphone, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
@@ -78,23 +78,7 @@ function PaymentContent() {
     });
   }, [status, orderId, jobId, paymentId, router]);
 
-  const openPaymentLink = async () => {
-    if (!order || !jobId) return;
-    setPaying(true);
-    try {
-      const res = await api<{ url: string }>("/api/payments/payment-link", {
-        method: "POST",
-        json: { orderId: order.orderId, jobId },
-      });
-      if (!res.data?.url) throw new Error(res.message || "Could not open Razorpay page");
-      window.location.href = res.data.url;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not open payment page");
-      setPaying(false);
-    }
-  };
-
-  const openCheckout = useCallback(async () => {
+  const handlePay = useCallback(async () => {
     if (!order || !jobId) return;
     const draft = getApplicationDraft(jobId);
     if (!draft) {
@@ -106,7 +90,7 @@ function PaymentContent() {
     setPaying(true);
     try {
       const loaded = await loadRazorpay();
-      if (!loaded) throw new Error("Failed to load Razorpay checkout");
+      if (!loaded) throw new Error("Failed to load payment gateway");
 
       const Razorpay = (window as unknown as {
         Razorpay: new (options: Record<string, unknown>) => {
@@ -116,7 +100,7 @@ function PaymentContent() {
       }).Razorpay;
 
       if (!order.key?.startsWith("rzp_")) {
-        throw new Error("Razorpay key is missing. Restart the server after updating .env.local.");
+        throw new Error("Payment gateway is not configured. Please contact support.");
       }
 
       const rzp = new Razorpay({
@@ -163,7 +147,9 @@ function PaymentContent() {
               `/payment/success?paymentId=${pid}&razorpayPaymentId=${response.razorpay_payment_id}&orderId=${response.razorpay_order_id}&amount=${order.amount}`
             );
           } else {
-            router.push(`/payment/failed?orderId=${order.orderId}&reason=${encodeURIComponent(verifyRes.message || "Verification failed")}`);
+            router.push(
+              `/payment/failed?orderId=${order.orderId}&jobId=${jobId}&reason=${encodeURIComponent(verifyRes.message || "Verification failed")}`
+            );
           }
         },
         modal: {
@@ -179,12 +165,7 @@ function PaymentContent() {
       });
 
       rzp.on("payment.failed", (response) => {
-        const description = response.error?.description || "Payment failed. Try another method.";
-        if (description.toLowerCase().includes("no appropriate payment method")) {
-          toast.error("Checkout popup failed. Use the Razorpay hosted page button below.");
-        } else {
-          toast.error(description);
-        }
+        toast.error(response.error?.description || "Payment failed. Please try again.");
       });
 
       rzp.open();
@@ -197,8 +178,11 @@ function PaymentContent() {
 
   if (!order) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
+      <div className="flex min-h-[60vh] items-center justify-center bg-brand-gray dark:bg-slate-950">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-blue" />
+          <p className="mt-3 text-sm text-brand-slate dark:text-slate-400">Preparing secure checkout...</p>
+        </div>
       </div>
     );
   }
@@ -209,84 +193,80 @@ function PaymentContent() {
     companyColor: order.companyColor,
   });
 
-  const isLiveKey = order.key.startsWith("rzp_live_");
-  const isLocalhost =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-
   return (
-    <div className="min-h-screen bg-brand-gray dark:bg-slate-950 py-10">
-      <div className="mx-auto max-w-lg px-4">
-        {isLiveKey && isLocalhost && (
-          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="font-semibold">Razorpay live keys on localhost</p>
-            <p className="mt-1">
-              Live checkout often fails on localhost. Use <strong>Test mode</strong> keys in{" "}
-              <code className="text-xs">.env.local</code> and restart the server.
-            </p>
-          </div>
-        )}
-        {!isLiveKey && isLocalhost && (
-          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-            <p className="font-semibold">Test mode active</p>
-            <p className="mt-1">
-              If the popup fails, use <strong>Pay on Razorpay Page</strong> below (recommended).
-              Test UPI: <code className="text-xs">success@razorpay</code> · Test card:{" "}
-              <code className="text-xs">4111 1111 1111 1111</code>
-            </p>
-          </div>
-        )}
-        <div className="glass-strong rounded-2xl p-6 sm:p-8">
-          <div className="flex items-center gap-2 text-brand-cyan">
-            <Shield className="h-5 w-5" />
-            <span className="text-sm font-semibold">Secure Payment via Razorpay</span>
-          </div>
-
-          <div className="mt-6 flex items-center gap-4">
-            <CompanyLogo {...logoProps} size="lg" />
-            <div>
-              <h1 className="font-display text-xl font-bold dark:text-white">{order.jobTitle}</h1>
-              <p className="text-sm text-brand-slate">{order.company}</p>
+    <div className="min-h-screen bg-gradient-to-b from-brand-gray via-white to-brand-gray py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="mx-auto max-w-md px-4">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card dark:border-slate-700/80 dark:bg-slate-900">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-brand-blue to-brand-cyan px-6 py-5 text-white">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              <span className="text-sm font-semibold tracking-wide">Secure Checkout</span>
             </div>
+            <p className="mt-1 text-xs text-blue-100">256-bit encrypted · Powered by Razorpay</p>
           </div>
 
-          <div className="mt-6">
-            <FeeBreakdown applicationFee={order.baseAmount} />
-          </div>
+          <div className="p-6 sm:p-8">
+            {/* Job summary */}
+            <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+              <CompanyLogo {...logoProps} size="lg" />
+              <div className="min-w-0 flex-1">
+                <h1 className="font-display text-lg font-bold leading-snug text-brand-dark dark:text-white">
+                  {order.jobTitle}
+                </h1>
+                <p className="mt-0.5 truncate text-sm text-brand-slate dark:text-slate-400">{order.company}</p>
+              </div>
+            </div>
 
-          <div className="mt-8 flex flex-col gap-3">
+            {/* Fee breakdown */}
+            <div className="mt-5">
+              <FeeBreakdown applicationFee={order.baseAmount} />
+            </div>
+
+            {/* Total highlight */}
+            <div className="mt-5 flex items-center justify-between rounded-xl bg-brand-blue/5 px-4 py-3 dark:bg-brand-blue/10">
+              <span className="text-sm font-medium text-brand-dark dark:text-slate-200">Amount to pay</span>
+              <span className="font-display text-2xl font-bold text-brand-orange">₹{order.amount.toFixed(2)}</span>
+            </div>
+
+            {/* Payment methods */}
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {[
+                { icon: Smartphone, label: "UPI" },
+                { icon: CreditCard, label: "Cards" },
+                { icon: Building2, label: "Net Banking" },
+              ].map(({ icon: Icon, label }) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center gap-1 rounded-lg border border-slate-100 bg-white py-2.5 dark:border-slate-700 dark:bg-slate-800/60"
+                >
+                  <Icon className="h-4 w-4 text-brand-cyan" />
+                  <span className="text-[11px] font-medium text-brand-slate dark:text-slate-400">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Pay button */}
             <Button
-              onClick={openPaymentLink}
+              onClick={handlePay}
               variant="orange"
-              className="w-full"
+              className="mt-6 w-full"
               size="lg"
               disabled={paying || !scriptReady}
             >
-              <CreditCard className="h-5 w-5" />
-              {paying ? "Opening Razorpay..." : `Pay ₹${order.amount.toFixed(2)} on Razorpay Page`}
+              <Lock className="h-4 w-4" />
+              {paying ? "Opening payment..." : `Pay ₹${order.amount.toFixed(2)} Securely`}
             </Button>
-            <Button
-              onClick={openCheckout}
-              variant="outline"
-              className="w-full"
-              size="lg"
-              disabled={paying || !scriptReady}
-            >
-              Pay in popup (alternative)
-            </Button>
-            <p className="text-center text-xs text-brand-slate">
-              UPI · Cards · Net Banking · Wallets accepted
-            </p>
-            {order.amount < 10 && (
-              <p className="mt-2 text-center text-xs text-amber-700">
-                For reliable checkout, set the job application fee to at least ₹10 in admin.
-              </p>
-            )}
-          </div>
 
-          <Button href={`/jobs/${jobId}/review`} variant="ghost" className="mt-4 w-full">
-            Back to Review
-          </Button>
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-brand-slate dark:text-slate-500">
+              <Lock className="h-3 w-3" />
+              Your payment is secured by Razorpay
+            </p>
+
+            <Button href={`/jobs/${jobId}/review`} variant="ghost" className="mt-4 w-full text-brand-slate dark:text-slate-400">
+              ← Back to Review
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -295,7 +275,13 @@ function PaymentContent() {
 
 export default function PaymentPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-brand-blue" /></div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center bg-brand-gray dark:bg-slate-950">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
+        </div>
+      }
+    >
       <PaymentContent />
     </Suspense>
   );
