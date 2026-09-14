@@ -451,7 +451,12 @@ async function completePayment(params: {
     await incrementApplicationsAllTime(1);
 
     await Promise.all([
-      sendApplicationReceivedEmail(user.email, user.name, job.title, job.company),
+      sendApplicationReceivedEmail(user.email, user.name, job.title, job.company, {
+        applicationNumber,
+        phone: user.phone,
+        amount: payment.amount,
+        receiptNumber,
+      }),
       sendPaymentSuccessEmail({
         email: user.email,
         name: user.name,
@@ -584,7 +589,7 @@ export async function getPaymentReceipt(paymentId: string, userId?: string) {
 
   if (!payment) throw new Error("Receipt not found");
 
-  const user = payment.userId as { name?: string; email?: string };
+  const user = payment.userId as { name?: string; email?: string; phone?: string };
   const job = payment.jobId as { title?: string; company?: string };
 
   return {
@@ -594,6 +599,7 @@ export async function getPaymentReceipt(paymentId: string, userId?: string) {
     applicationNumber: payment.applicationNumber,
     candidateName: user.name,
     candidateEmail: user.email,
+    candidatePhone: user.phone,
     company: job.company,
     jobTitle: job.title,
     baseAmount: payment.baseAmount,
