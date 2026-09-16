@@ -51,6 +51,22 @@ export async function resolveApplicationResume(params: {
   applicationNumber: string;
   resume: ResumePayload;
 }) {
+  await connectDB();
+  const user = await User.findById(params.userId);
+  if (!user) throw new Error("User not found");
+  const snapshot = buildProfileSnapshot(user);
+
+  if (params.resume.resumeType === "none" || !params.resume.resumeType) {
+    return {
+      url: undefined as string | undefined,
+      publicId: undefined as string | undefined,
+      format: undefined as string | undefined,
+      bytes: 0,
+      snapshot,
+      resumeType: "none" as ResumeType,
+    };
+  }
+
   if (params.resume.resumeType === "generated") {
     return generateApplicationResume({
       userId: params.userId,
@@ -60,19 +76,22 @@ export async function resolveApplicationResume(params: {
   }
 
   if (!params.resume.resumeUrl || !params.resume.resumePublicId) {
-    throw new Error("Uploaded resume is missing. Please upload again before paying.");
+    return {
+      url: undefined as string | undefined,
+      publicId: undefined as string | undefined,
+      format: undefined as string | undefined,
+      bytes: 0,
+      snapshot,
+      resumeType: "none" as ResumeType,
+    };
   }
-
-  await connectDB();
-  const user = await User.findById(params.userId);
-  if (!user) throw new Error("User not found");
 
   return {
     url: params.resume.resumeUrl,
     publicId: params.resume.resumePublicId,
     format: "pdf",
     bytes: 0,
-    snapshot: buildProfileSnapshot(user),
+    snapshot,
     resumeType: "uploaded" as ResumeType,
   };
 }

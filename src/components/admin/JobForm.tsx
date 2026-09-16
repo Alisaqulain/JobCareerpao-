@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Plus, Copy, Power, Trash2, Archive } from "lucide-react";
 import Link from "next/link";
 import type { DynamicField } from "@/types";
+import { STANDARD_APPLICATION_FIELDS } from "@/lib/application-form";
 import { CompanyPicker } from "@/components/admin/CompanyPicker";
 import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
 
@@ -63,7 +64,9 @@ export function JobForm({
     requiredDocuments: ((initial?.requiredDocuments as string[]) || []).join(", "),
   });
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>(
-    (initial?.dynamicFields as DynamicField[]) || []
+    (initial?.dynamicFields as DynamicField[])?.length
+      ? (initial?.dynamicFields as DynamicField[])
+      : STANDARD_APPLICATION_FIELDS.map((f) => ({ ...f }))
   );
 
   const addField = () => {
@@ -284,7 +287,10 @@ export function JobForm({
       <div className="rounded-2xl border border-slate-200 p-4">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-display font-semibold text-brand-dark">Dynamic Application Fields</h3>
-          <Button type="button" size="sm" variant="outline" onClick={addField}>
+          <p className="mt-1 text-xs text-brand-slate">
+            Public apply page always uses the standard candidate form (name, parents, Aadhaar, PAN, education, mobile). These fields are optional extras for admin reference.
+          </p>
+          <Button type="button" size="sm" variant="outline" onClick={addField} className="mt-2">
             Add Field
           </Button>
         </div>

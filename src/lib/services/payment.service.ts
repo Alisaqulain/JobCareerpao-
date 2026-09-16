@@ -64,10 +64,7 @@ export async function createPaymentOrder(params: {
   const user = await User.findById(params.userId);
   if (!user) throw new Error("User not found");
   if (!isProfileReadyForApply(user, params.resumeType)) {
-    if (params.resumeType === "uploaded") {
-      throw new Error("Please add your name and phone in your profile before applying");
-    }
-    throw new Error("Please complete your profile (skills, education, experience) for auto-generated resume");
+    throw new Error("Please add your name and phone in your profile before applying");
   }
   if (params.resumeType === "uploaded" && (!params.resumeUrl || !params.resumePublicId)) {
     throw new Error("Please upload a resume for this application");

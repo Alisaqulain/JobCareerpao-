@@ -134,7 +134,7 @@ export const profileUpdateSchema = z.object({
 export const createOrderSchema = z.object({
   jobId: z.string().min(1),
   formAnswers: z.record(z.string(), z.unknown()),
-  resumeType: z.enum(["generated", "uploaded"]),
+  resumeType: z.enum(["generated", "uploaded", "none"]).default("none"),
   resumeUrl: z.string().url().optional(),
   resumePublicId: z.string().optional(),
   coverLetter: z.string().max(5000).optional(),

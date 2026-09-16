@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FileText, Pencil, CreditCard } from "lucide-react";
+import { Pencil, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
@@ -11,8 +11,8 @@ import { DynamicApplicationForm } from "@/components/payment/DynamicApplicationF
 import { api } from "@/hooks/useApi";
 import { getJobLogoProps } from "@/lib/job-utils";
 import { getApplicationDraft } from "@/lib/payment-utils";
+import { STANDARD_APPLICATION_FIELDS } from "@/lib/application-form";
 import { toast } from "sonner";
-import type { DynamicField } from "@/types";
 
 interface JobDetail {
   _id: string;
@@ -22,7 +22,6 @@ interface JobDetail {
   companyColor?: string;
   companyId?: { logoUrl?: string; color?: string; name?: string };
   applicationFee: number;
-  dynamicFields: DynamicField[];
 }
 
 export default function ApplicationReviewPage() {
@@ -63,9 +62,7 @@ export default function ApplicationReviewPage() {
         json: {
           jobId: job._id,
           formAnswers: draft.formAnswers,
-          resumeType: draft.resumeType,
-          resumeUrl: draft.resumeUrl,
-          resumePublicId: draft.resumePublicId,
+          resumeType: "none",
           coverLetter: draft.coverLetter,
         },
       });
@@ -93,57 +90,40 @@ export default function ApplicationReviewPage() {
   const logoProps = getJobLogoProps(job);
 
   return (
-    <div className="min-h-screen bg-brand-gray dark:bg-slate-950 py-10">
+    <div className="min-h-screen bg-brand-gray py-10 dark:bg-slate-950">
       <div className="mx-auto max-w-3xl px-4">
         <div className="glass-strong rounded-2xl p-6 sm:p-8">
-          <h1 className="font-display text-2xl font-bold text-brand-dark dark:text-white">Review Application</h1>
-          <p className="mt-1 text-sm text-brand-slate">Verify your details before proceeding to payment.</p>
+          <h1 className="font-display text-2xl font-bold text-brand-dark dark:text-white">
+            Review Application
+          </h1>
+          <p className="mt-1 text-sm text-brand-slate dark:text-slate-400">
+            Verify your details before proceeding to payment.
+          </p>
 
-          <div className="mt-6 flex items-center gap-4 rounded-xl bg-brand-gray dark:bg-slate-800 p-4">
+          <div className="mt-6 flex items-center gap-4 rounded-xl bg-brand-gray p-4 dark:bg-slate-800">
             <CompanyLogo {...logoProps} size="md" />
             <div>
-              <p className="font-semibold dark:text-white">{job.title}</p>
-              <p className="text-sm text-brand-slate">{job.company}</p>
+              <p className="font-semibold text-brand-dark dark:text-white">{job.title}</p>
+              <p className="text-sm text-brand-slate dark:text-slate-400">{job.company}</p>
             </div>
           </div>
 
           <div className="mt-6">
             <div className="flex items-center justify-between">
-              <h2 className="font-display font-semibold dark:text-white">Your Answers</h2>
+              <h2 className="font-display font-semibold text-brand-dark dark:text-white">Your Details</h2>
               <Button href={`/jobs/${jobId}/apply`} size="sm" variant="outline">
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </Button>
             </div>
             <div className="mt-4">
               <DynamicApplicationForm
-                fields={job.dynamicFields}
+                fields={STANDARD_APPLICATION_FIELDS}
                 answers={draft.formAnswers}
                 onChange={() => {}}
                 readOnly
               />
             </div>
           </div>
-
-          <div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-            <FileText className="h-8 w-8 text-brand-cyan" />
-            <div>
-              <p className="text-sm font-medium dark:text-white">Resume</p>
-              {draft.resumeType === "generated" ? (
-                <p className="text-xs text-brand-slate">PDF will be generated from your profile after payment.</p>
-              ) : (
-                <a href={draft.resumeUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-cyan hover:underline">
-                  View uploaded resume
-                </a>
-              )}
-            </div>
-          </div>
-
-          {draft.coverLetter && (
-            <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-              <p className="text-sm font-medium dark:text-white">Cover Letter</p>
-              <p className="mt-2 whitespace-pre-line text-sm text-brand-slate">{draft.coverLetter}</p>
-            </div>
-          )}
 
           <div className="mt-6">
             <FeeBreakdown applicationFee={job.applicationFee} />
@@ -154,7 +134,9 @@ export default function ApplicationReviewPage() {
               <CreditCard className="h-4 w-4" />
               {loading ? "Creating order..." : "Proceed to Payment"}
             </Button>
-            <Button href={`/jobs/${jobId}/apply`} variant="outline">Back to Edit</Button>
+            <Button href={`/jobs/${jobId}/apply`} variant="outline">
+              Back to Edit
+            </Button>
           </div>
         </div>
       </div>

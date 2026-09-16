@@ -133,7 +133,7 @@ function PaymentContent() {
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
               formAnswers: draft.formAnswers,
-              resumeType: draft.resumeType,
+              resumeType: draft.resumeType || "none",
               resumeUrl: draft.resumeUrl,
               resumePublicId: draft.resumePublicId,
               coverLetter: draft.coverLetter,

@@ -76,6 +76,6 @@ export function isProfileReadyForApplication(user: IUser) {
 
 export function isProfileReadyForApply(user: IUser, resumeType: ResumeType) {
   if (!hasMinimumApplyProfile(user)) return false;
-  if (resumeType === "uploaded") return true;
+  if (resumeType === "uploaded" || resumeType === "none") return true;
   return canGenerateProfileResume(user);
 }

@@ -12,7 +12,7 @@ export type ApplicationStatus =
   | "archived"
   | "pending";
 
-export type ResumeType = "generated" | "uploaded";
+export type ResumeType = "generated" | "uploaded" | "none";
 
 export interface UserAddress {
   line1?: string;

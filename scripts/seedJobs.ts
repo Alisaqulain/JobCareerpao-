@@ -2,18 +2,14 @@ import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import mongoose from "mongoose";
 import type { CompanyCategory } from "../src/lib/constants/companies";
-import type { DynamicField } from "../src/types";
+import { STANDARD_APPLICATION_FIELDS } from "../src/lib/application-form";
 
 const JOBS_PER_COMPANY = 10;
 const APPLICATION_FEE = 199;
 const SALARY_MIN = 15000;
 const SALARY_MAX = 30000;
 
-const DEFAULT_DYNAMIC_FIELDS: DynamicField[] = [
-  { id: "fullName", label: "Full Name", type: "text", required: true },
-  { id: "email", label: "Email", type: "email", required: true },
-  { id: "phone", label: "Phone", type: "phone", required: true },
-];
+const DEFAULT_DYNAMIC_FIELDS = STANDARD_APPLICATION_FIELDS;
 
 const TITLES_BY_CATEGORY: Record<string, string[]> = {
   "IT Company": [

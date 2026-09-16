@@ -5,7 +5,7 @@ export interface IApplication extends Document {
   userId: Types.ObjectId;
   jobId: Types.ObjectId;
   applicationNumber: string;
-  resumeUrl: string;
+  resumeUrl?: string;
   resumePublicId?: string;
   resumeType: ResumeType;
   profileSnapshot?: Record<string, unknown>;
@@ -29,9 +29,9 @@ const ApplicationSchema = new Schema<IApplication>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     jobId: { type: Schema.Types.ObjectId, ref: "Job", required: true, index: true },
     applicationNumber: { type: String, required: true, unique: true, index: true },
-    resumeUrl: { type: String, required: true },
+    resumeUrl: { type: String },
     resumePublicId: { type: String, index: true, sparse: true },
-    resumeType: { type: String, enum: ["generated", "uploaded"], default: "uploaded", index: true },
+    resumeType: { type: String, enum: ["generated", "uploaded", "none"], default: "none", index: true },
     profileSnapshot: { type: Schema.Types.Mixed },
     coverLetter: String,
     formAnswers: { type: Schema.Types.Mixed, default: {} },

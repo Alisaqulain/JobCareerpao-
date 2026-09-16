@@ -27,7 +27,7 @@ export const APPLICATION_STATUSES = [
   "pending",
 ] as const;
 
-export const RESUME_TYPES = ["generated", "uploaded"] as const;
+export const RESUME_TYPES = ["generated", "uploaded", "none"] as const;
 
 export const REJECTED_APPLICATION_RETENTION_DAYS = Number(
   process.env.REJECTED_APPLICATION_RETENTION_DAYS || 90
