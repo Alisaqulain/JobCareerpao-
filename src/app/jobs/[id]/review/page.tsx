@@ -11,7 +11,7 @@ import { DynamicApplicationForm } from "@/components/payment/DynamicApplicationF
 import { api } from "@/hooks/useApi";
 import { getJobLogoProps } from "@/lib/job-utils";
 import { getApplicationDraft } from "@/lib/payment-utils";
-import { STANDARD_APPLICATION_FIELDS } from "@/lib/application-form";
+import { STANDARD_APPLICATION_FIELDS, validateStandardApplicationForm } from "@/lib/application-form";
 import { toast } from "sonner";
 
 interface JobDetail {
@@ -51,6 +51,12 @@ export default function ApplicationReviewPage() {
 
   const handleProceed = async () => {
     if (!job || !draft) return;
+    const validationError = validateStandardApplicationForm(draft.formAnswers);
+    if (validationError) {
+      toast.error(validationError);
+      router.push(`/jobs/${jobId}/apply`);
+      return;
+    }
     setLoading(true);
     try {
       const orderRes = await api<{

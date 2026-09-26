@@ -102,12 +102,30 @@ export const STANDARD_APPLICATION_FIELDS: DynamicField[] = [
     placeholder: "10-digit mobile number",
     validation: { pattern: "^[6-9][0-9]{9}$", min: 10, max: 10 },
   },
+  {
+    id: "applicantPhoto",
+    label: "Passport Size Photo",
+    type: "file",
+    required: true,
+    placeholder: "JPEG, PNG or WebP — max 5MB",
+  },
 ];
+
+export function applicationFileUrlKey(fieldId: string) {
+  return `${fieldId}Url`;
+}
+
+export function applicationFilePublicIdKey(fieldId: string) {
+  return `${fieldId}PublicId`;
+}
 
 /** Select fields that support an "Other" text input */
 export const SELECT_OTHER_FIELDS = new Set(["board10", "board12", "highestQualification"]);
 
 export function resolveAnswerDisplay(fieldId: string, answers: Record<string, unknown>) {
+  if (fieldId === "applicantPhoto") {
+    return String(answers[applicationFileUrlKey(fieldId)] ?? "").trim();
+  }
   const value = String(answers[fieldId] ?? "").trim();
   if (value === "Other") {
     const other = String(answers[`${fieldId}_other`] ?? "").trim();
@@ -118,6 +136,14 @@ export function resolveAnswerDisplay(fieldId: string, answers: Record<string, un
 
 export function validateStandardApplicationForm(answers: Record<string, unknown>) {
   for (const field of STANDARD_APPLICATION_FIELDS) {
+    if (field.type === "file") {
+      const url = String(answers[applicationFileUrlKey(field.id)] ?? "").trim();
+      if (field.required && !url) {
+        return `${field.label} is required — please upload your photo`;
+      }
+      continue;
+    }
+
     const raw = answers[field.id];
     const value = String(raw ?? "").trim();
 

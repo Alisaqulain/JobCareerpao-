@@ -3,7 +3,8 @@ import { successResponse, errorResponse } from "@/lib/utils/api-response";
 import { requireUser } from "@/lib/auth/helpers";
 import {
   uploadProfileImage,
-  validateResumeFile,
+  uploadApplicantPhoto,
+  validateApplicantPhotoFile,
 } from "@/lib/services/cloudinary.service";
 import { connectDB } from "@/lib/db/mongoose";
 import { User } from "@/models/User";
@@ -39,10 +40,12 @@ export async function POST(request: NextRequest) {
       return successResponse({ url: result.url, publicId: result.publicId }, "Profile picture uploaded");
     }
 
-    if (type === "resume") {
-      return errorResponse(
-        "Profile resumes are no longer stored. Upload a resume during job application instead.",
-        400
+    if (type === "application-photo") {
+      validateApplicantPhotoFile(file);
+      const result = await uploadApplicantPhoto(buffer, filename);
+      return successResponse(
+        { url: result.url, publicId: result.publicId },
+        "Photo uploaded"
       );
     }
 

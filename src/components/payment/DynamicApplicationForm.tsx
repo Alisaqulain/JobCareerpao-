@@ -1,7 +1,15 @@
 "use client";
 
+import { useState } from "react";
+import { Upload, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { DynamicField } from "@/types";
-import { SELECT_OTHER_FIELDS, resolveAnswerDisplay } from "@/lib/application-form";
+import {
+  SELECT_OTHER_FIELDS,
+  resolveAnswerDisplay,
+  applicationFileUrlKey,
+  applicationFilePublicIdKey,
+} from "@/lib/application-form";
 
 interface DynamicFormProps {
   fields: DynamicField[];
@@ -11,15 +19,42 @@ interface DynamicFormProps {
 }
 
 export function DynamicApplicationForm({ fields, answers, onChange, readOnly }: DynamicFormProps) {
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
   const inputClass =
     "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-brand-dark dark:border-slate-700 dark:bg-slate-800 dark:text-white";
 
   const set = (id: string, value: unknown) => onChange({ ...answers, [id]: value });
 
+  const handleFileUpload = async (field: DynamicField, file: File) => {
+    setUploadingField(field.id);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "application-photo");
+      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      const body = await res.json();
+      if (!res.ok || !body.success || !body.data?.url) {
+        throw new Error(body.message || "Upload failed");
+      }
+      onChange({
+        ...answers,
+        [applicationFileUrlKey(field.id)]: body.data.url,
+        [applicationFilePublicIdKey(field.id)]: body.data.publicId,
+      });
+      toast.success(`${field.label} uploaded`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {fields.map((field) => {
-        const isWide = field.type === "textarea" || field.id === "fullName";
+        const isWide =
+          field.type === "textarea" || field.id === "fullName" || field.type === "file";
+        const photoUrl = String(answers[applicationFileUrlKey(field.id)] ?? "");
         const supportsOther = SELECT_OTHER_FIELDS.has(field.id) && field.type === "select";
         const current = String(answers[field.id] ?? "");
         const showOtherInput = supportsOther && (current === "Other" || (!!answers[`${field.id}_other`] && !field.options?.includes(current) && current !== ""));
@@ -42,9 +77,57 @@ export function DynamicApplicationForm({ fields, answers, onChange, readOnly }: 
             </label>
 
             {readOnly ? (
-              <p className="rounded-xl bg-brand-gray px-3 py-2.5 text-sm text-brand-dark dark:bg-slate-800 dark:text-white">
-                {resolveAnswerDisplay(field.id, answers)}
-              </p>
+              field.type === "file" && photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={field.label}
+                  className="h-32 w-32 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
+                />
+              ) : field.type === "file" ? (
+                <p className="rounded-xl bg-brand-gray px-3 py-2.5 text-sm text-brand-slate dark:bg-slate-800">
+                  Not uploaded
+                </p>
+              ) : (
+                <p className="rounded-xl bg-brand-gray px-3 py-2.5 text-sm text-brand-dark dark:bg-slate-800 dark:text-white">
+                  {resolveAnswerDisplay(field.id, answers)}
+                </p>
+              )
+            ) : field.type === "file" ? (
+              <div className="space-y-3">
+                {photoUrl ? (
+                  <img
+                    src={photoUrl}
+                    alt={field.label}
+                    className="h-32 w-32 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
+                  />
+                ) : null}
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-sm text-brand-slate transition hover:border-brand-cyan hover:bg-brand-cyan/5 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-brand-cyan">
+                  {uploadingField === field.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      {photoUrl ? "Change photo" : "Upload photo"}
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={uploadingField === field.id}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFileUpload(field, file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {field.placeholder && (
+                  <p className="text-xs text-brand-slate dark:text-slate-400">{field.placeholder}</p>
+                )}
+              </div>
             ) : field.type === "textarea" ? (
               <textarea
                 className={`${inputClass} min-h-[100px] py-2`}

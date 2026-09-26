@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const query = parsed.success ? parsed.data : { page: 1, limit: 20, order: "desc" as const };
     const exportFormat = params.export;
 
-    const { payments, pagination } = await listPaymentsAdmin({
+    const { payments, pagination, summary } = await listPaymentsAdmin({
       page: query.page,
       limit: exportFormat ? 10000 : query.limit,
       search: query.search,
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return successResponse(payments, undefined, 200, pagination);
+    return successResponse({ payments, summary }, undefined, 200, pagination);
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : "Failed to fetch payments", 500);
   }

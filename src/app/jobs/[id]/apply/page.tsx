@@ -18,6 +18,7 @@ import {
   validateStandardApplicationForm,
 } from "@/lib/application-form";
 import { toast } from "sonner";
+import { signOut } from "next-auth/react";
 
 interface JobDetail {
   _id: string;
@@ -41,36 +42,72 @@ export default function ApplyJobPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = String(params.id);
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [job, setJob] = useState<JobDetail | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [pageLoading, setPageLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace(`/auth/login?redirect=/jobs/${jobId}/apply`);
       return;
     }
-    if (status === "authenticated") {
-      api<{ job: JobDetail }>(`/api/jobs/${jobId}`).then((res) => {
-        if (res.data?.job) setJob(res.data.job);
-      });
-      api<ProfileData>("/api/user/profile").then((res) => {
-        if (res.data) {
-          setProfile(res.data);
+    if (status !== "authenticated") return;
+
+    let cancelled = false;
+    setPageLoading(true);
+    setLoadError(null);
+
+    Promise.all([
+      api<{ job: JobDetail }>(`/api/jobs/${jobId}`),
+      api<ProfileData>("/api/user/profile"),
+    ])
+      .then(([jobRes, profileRes]) => {
+        if (cancelled) return;
+
+        if (jobRes.data?.job) {
+          setJob(jobRes.data.job);
+        } else {
+          setLoadError(jobRes.message || "This job could not be loaded.");
+          return;
+        }
+
+        if (profileRes.data) {
+          setProfile(profileRes.data);
           const draft = getApplicationDraft(jobId);
           if (draft?.formAnswers) {
             setAnswers(draft.formAnswers);
           } else {
             setAnswers({
-              fullName: res.data.name || "",
-              mobileNumber: (res.data.phone || "").replace(/\D/g, "").slice(-10),
+              fullName: profileRes.data.name || "",
+              mobileNumber: (profileRes.data.phone || "").replace(/\D/g, "").slice(-10),
             });
           }
+          return;
         }
+
+        if (session?.user?.role === "admin") {
+          setLoadError(
+            "You are signed in as admin. Sign out and log in with a job seeker account to apply."
+          );
+          return;
+        }
+
+        setLoadError(
+          profileRes.message ||
+            "We could not load your profile. Sign out and sign in again, then retry."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setPageLoading(false);
       });
-    }
-  }, [status, jobId, router]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, jobId, router, session?.user?.role]);
 
   const handleContinue = () => {
     if (!job || !profile) return;
@@ -99,10 +136,35 @@ export default function ApplyJobPage() {
     router.push(`/jobs/${jobId}/review`);
   };
 
-  if (status === "loading" || !job || !profile) {
+  if (status === "loading" || pageLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-brand-gray dark:bg-slate-950">
         <p className="text-brand-slate">Loading application form...</p>
+      </div>
+    );
+  }
+
+  if (loadError || !job || !profile) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-brand-gray px-4 dark:bg-slate-950">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
+          <AlertCircle className="mx-auto h-10 w-10 text-brand-orange" />
+          <p className="mt-3 font-semibold text-brand-dark dark:text-white">Cannot open application</p>
+          <p className="mt-2 text-sm text-brand-slate dark:text-slate-400">
+            {loadError || "Something went wrong while loading this page."}
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button href={`/jobs/${jobId}`} variant="outline">
+              Back to job
+            </Button>
+            <Button
+              variant="orange"
+              onClick={() => signOut({ callbackUrl: `/auth/login?redirect=/jobs/${jobId}/apply` })}
+            >
+              Sign in again
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

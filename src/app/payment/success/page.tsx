@@ -81,6 +81,15 @@ function SuccessContent() {
             <p className="mt-2 text-sm text-emerald-50 sm:text-base">
               Your application has been successfully submitted.
             </p>
+            {appNo && (
+              <div className="mx-auto mt-6 max-w-md rounded-xl border border-white/30 bg-white/15 px-4 py-3 backdrop-blur-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-100">
+                  Your registration number
+                </p>
+                <p className="mt-1 font-mono text-xl font-bold tracking-wide sm:text-2xl">{appNo}</p>
+                <p className="mt-1 text-xs text-emerald-50/90">Save this number for future reference</p>
+              </div>
+            )}
           </div>
 
           {/* Formal letter */}

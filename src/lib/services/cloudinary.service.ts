@@ -66,6 +66,27 @@ export async function uploadProfileImage(
   ]);
 }
 
+export async function uploadApplicantPhoto(
+  buffer: Buffer,
+  filename: string
+): Promise<UploadResult> {
+  return uploadImage(buffer, filename, "applications/photos", [
+    { width: 600, height: 600, crop: "limit" },
+  ]);
+}
+
+const APPLICANT_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const APPLICANT_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+export function validateApplicantPhotoFile(file: File) {
+  if (!APPLICANT_PHOTO_TYPES.includes(file.type)) {
+    throw new Error("Photo must be JPEG, PNG, or WebP");
+  }
+  if (file.size > APPLICANT_PHOTO_MAX_BYTES) {
+    throw new Error("Photo must be 5MB or smaller");
+  }
+}
+
 export async function uploadImage(
   buffer: Buffer,
   filename: string,

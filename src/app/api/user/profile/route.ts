@@ -11,9 +11,24 @@ export async function GET() {
   const { user, error } = await requireUser();
   if (error) return error;
 
+  if (user!.role === "admin") {
+    return errorResponse(
+      "Job seeker profile is not available while signed in as admin. Sign out and use a candidate account to apply.",
+      403
+    );
+  }
+
   await connectDB();
-  const profile = await User.findById(user!.id).select("-password").lean();
-  if (!profile) return errorResponse("User not found", 404);
+  let profile = await User.findById(user!.id).select("-password").lean();
+  if (!profile && user!.email) {
+    profile = await User.findOne({ email: user!.email.toLowerCase() }).select("-password").lean();
+  }
+  if (!profile) {
+    return errorResponse(
+      "Account not found. Please sign out and sign in again, or complete registration.",
+      404
+    );
+  }
 
   const profileComplete = hasMinimumApplyProfile(profile);
   const canGenerateResume = canGenerateProfileResume(profile);

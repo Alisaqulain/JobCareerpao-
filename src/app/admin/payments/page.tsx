@@ -20,8 +20,21 @@ interface PaymentRow {
   applicationId?: { applicationNumber?: string; appliedDate?: string; status?: string };
 }
 
+interface PaymentSummary {
+  totalRecords: number;
+  paidCount: number;
+  paidAmount: number;
+  totalAmountListed: number;
+}
+
+interface PaymentsPayload {
+  payments: PaymentRow[];
+  summary: PaymentSummary;
+}
+
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [summary, setSummary] = useState<PaymentSummary | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
 
@@ -29,8 +42,11 @@ export default function AdminPaymentsPage() {
     const params = new URLSearchParams({ limit: "100" });
     if (search) params.set("search", search);
     if (status) params.set("status", status);
-    api<PaymentRow[]>(`/api/admin/payments?${params}`).then((res) => {
-      if (res.data) setPayments(res.data);
+    api<PaymentsPayload>(`/api/admin/payments?${params}`).then((res) => {
+      if (res.data?.payments) {
+        setPayments(res.data.payments);
+        setSummary(res.data.summary ?? null);
+      }
     });
   };
 
@@ -43,7 +59,7 @@ export default function AdminPaymentsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="font-display text-2xl font-bold text-brand-dark">Payments</h1>
-              <p className="text-sm text-brand-slate">All Razorpay transactions</p>
+              <p className="text-sm text-brand-slate">Who paid, registration numbers, and totals</p>
             </div>
             <div className="flex gap-2">
               <a href="/api/admin/payments?export=csv" className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-brand-gray">
@@ -54,6 +70,29 @@ export default function AdminPaymentsPage() {
               </a>
             </div>
           </div>
+
+          {summary && (
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-brand-slate">Total received (paid)</p>
+                <p className="mt-1 font-display text-2xl font-bold text-brand-dark">
+                  ₹{summary.paidAmount.toLocaleString("en-IN")}
+                </p>
+                <p className="mt-1 text-xs text-brand-slate">{summary.paidCount} successful payment(s)</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-brand-slate">Records (current filter)</p>
+                <p className="mt-1 font-display text-2xl font-bold text-brand-dark">{summary.totalRecords}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase text-brand-slate">Sum of amounts shown</p>
+                <p className="mt-1 font-display text-2xl font-bold text-brand-cyan">
+                  ₹{summary.totalAmountListed.toLocaleString("en-IN")}
+                </p>
+                <p className="mt-1 text-xs text-brand-slate">All statuses in filter</p>
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
@@ -86,20 +125,21 @@ export default function AdminPaymentsPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-brand-gray text-left text-xs uppercase text-brand-slate">
                 <tr>
-                  <th className="px-4 py-3">Payment ID</th>
-                  <th className="px-4 py-3">User</th>
+                  <th className="px-4 py-3">Registration No.</th>
+                  <th className="px-4 py-3">User (paid by)</th>
                   <th className="px-4 py-3">Job / Company</th>
                   <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Gateway</th>
+                  <th className="px-4 py-3">Payment ID</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Refund</th>
                   <th className="px-4 py-3">Paid Date</th>
                 </tr>
               </thead>
               <tbody>
                 {payments.map((p) => (
                   <tr key={p._id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-mono text-xs">{p.razorpayPaymentId || p.razorpayOrderId}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-brand-dark">
+                      {p.applicationId?.applicationNumber || "—"}
+                    </td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{p.userId?.name}</p>
                       <p className="text-xs text-brand-slate">{p.userId?.email}</p>
@@ -108,8 +148,8 @@ export default function AdminPaymentsPage() {
                       <p>{p.jobId?.title}</p>
                       <p className="text-xs text-brand-slate">{p.jobId?.company}</p>
                     </td>
-                    <td className="px-4 py-3">₹{p.amount}</td>
-                    <td className="px-4 py-3 capitalize">{p.gateway}</td>
+                    <td className="px-4 py-3 font-semibold">₹{p.amount}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{p.razorpayPaymentId || p.razorpayOrderId}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-lg px-2 py-1 text-xs font-semibold capitalize ${
                         p.status === "paid" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
@@ -117,7 +157,6 @@ export default function AdminPaymentsPage() {
                         {p.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 capitalize text-xs">{p.refundStatus || "none"}</td>
                     <td className="px-4 py-3 text-xs">
                       {p.paidAt ? new Date(p.paidAt).toLocaleString("en-IN") : "—"}
                     </td>

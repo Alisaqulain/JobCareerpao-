@@ -31,6 +31,7 @@ import { resolveApplicationResume } from "@/lib/services/resume.service";
 import { incrementApplicationsAllTime } from "@/lib/services/analytics.service";
 import { isProfileReadyForApply } from "@/lib/resume/profile";
 import type { ResumeType } from "@/types";
+import { validateStandardApplicationForm } from "@/lib/application-form";
 import ExcelJS from "exceljs";
 
 async function assertNoDuplicateApplication(userId: string, jobId: string) {
@@ -69,6 +70,9 @@ export async function createPaymentOrder(params: {
   if (params.resumeType === "uploaded" && (!params.resumeUrl || !params.resumePublicId)) {
     throw new Error("Please upload a resume for this application");
   }
+
+  const formValidation = validateStandardApplicationForm(params.formAnswers);
+  if (formValidation) throw new Error(formValidation);
 
   await cancelPendingOrders(params.userId, params.jobId);
 
@@ -650,7 +654,7 @@ export async function listPaymentsAdmin(params: {
     ];
   }
 
-  const [payments, total] = await Promise.all([
+  const [payments, total, summaryRows] = await Promise.all([
     Payment.find(filter)
       .populate("userId", "name email phone")
       .populate("jobId", "title company")
@@ -660,15 +664,39 @@ export async function listPaymentsAdmin(params: {
       .limit(limit)
       .lean(),
     Payment.countDocuments(filter),
+    Payment.aggregate<{ totalAmount: number; paidAmount: number; paidCount: number }>([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: "$amount" },
+          paidAmount: {
+            $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$amount", 0] },
+          },
+          paidCount: {
+            $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] },
+          },
+        },
+      },
+    ]),
   ]);
 
-  return { payments, pagination: getPagination(page, limit, total) };
+  const summaryRow = summaryRows[0];
+  const summary = {
+    totalRecords: total,
+    paidCount: summaryRow?.paidCount ?? 0,
+    paidAmount: summaryRow?.paidAmount ?? 0,
+    totalAmountListed: summaryRow?.totalAmount ?? 0,
+  };
+
+  return { payments, pagination: getPagination(page, limit, total), summary };
 }
 
 export async function exportPaymentsCsv(payments: Array<Record<string, unknown>>) {
   const headers = [
     "Payment ID",
     "Order ID",
+    "Registration No.",
     "User",
     "Email",
     "Job",
@@ -683,9 +711,11 @@ export async function exportPaymentsCsv(payments: Array<Record<string, unknown>>
   const rows = payments.map((p) => {
     const user = p.userId as { name?: string; email?: string };
     const job = p.jobId as { title?: string; company?: string };
+    const app = p.applicationId as { applicationNumber?: string } | undefined;
     return [
       p.razorpayPaymentId || "",
       p.razorpayOrderId || "",
+      app?.applicationNumber || "",
       user?.name || "",
       user?.email || "",
       job?.title || "",
@@ -708,6 +738,7 @@ export async function exportPaymentsExcel(payments: Array<Record<string, unknown
   sheet.columns = [
     { header: "Payment ID", key: "paymentId", width: 24 },
     { header: "Order ID", key: "orderId", width: 24 },
+    { header: "Registration No.", key: "registrationNo", width: 18 },
     { header: "User", key: "user", width: 20 },
     { header: "Email", key: "email", width: 28 },
     { header: "Job", key: "job", width: 24 },
@@ -723,9 +754,11 @@ export async function exportPaymentsExcel(payments: Array<Record<string, unknown
   for (const p of payments) {
     const user = p.userId as { name?: string; email?: string };
     const job = p.jobId as { title?: string; company?: string };
+    const app = p.applicationId as { applicationNumber?: string } | undefined;
     sheet.addRow({
       paymentId: p.razorpayPaymentId || "",
       orderId: p.razorpayOrderId || "",
+      registrationNo: app?.applicationNumber || "",
       user: user?.name || "",
       email: user?.email || "",
       job: job?.title || "",

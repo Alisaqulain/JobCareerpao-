@@ -146,6 +146,14 @@ export const createOrderSchema = z.object({
       path: ["resumeUrl"],
     });
   }
+  const photoUrl = data.formAnswers.applicantPhotoUrl;
+  if (!photoUrl || typeof photoUrl !== "string" || !photoUrl.trim()) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Passport size photo is required",
+      path: ["formAnswers"],
+    });
+  }
 });
 
 export const verifyPaymentSchema = createOrderSchema.extend({
