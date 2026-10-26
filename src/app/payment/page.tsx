@@ -7,6 +7,7 @@ import { CreditCard, Shield, Loader2, Lock, Smartphone, Building2 } from "lucide
 import { Button } from "@/components/ui/Button";
 import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
+import { FeeNotice } from "@/components/legal/FeeNotice";
 import { api, loadRazorpay } from "@/hooks/useApi";
 import { getJobLogoProps } from "@/lib/job-utils";
 import { getApplicationDraft, clearApplicationDraft } from "@/lib/payment-utils";
@@ -219,8 +220,9 @@ function PaymentContent() {
             </div>
 
             {/* Fee breakdown */}
-            <div className="mt-5">
+            <div className="mt-5 space-y-3">
               <FeeBreakdown applicationFee={order.baseAmount} />
+              <FeeNotice />
             </div>
 
             {/* Total highlight */}

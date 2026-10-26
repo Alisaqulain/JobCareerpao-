@@ -301,9 +301,14 @@ export const footerLinks = {
     { label: "FAQ", href: "/faq" },
   ],
   legal: [
-    { label: "Privacy Policy", href: "/privacy" },
+    { label: "All policies", href: "/legal" },
     { label: "Terms", href: "/terms" },
+    { label: "Why we charge", href: "/fees" },
+    { label: "Privacy & data", href: "/privacy" },
     { label: "Refund Policy", href: "/refund" },
+    { label: "Cookies", href: "/cookies" },
+    { label: "Disclaimer", href: "/disclaimer" },
+    { label: "Grievance", href: "/grievance" },
   ],
   candidates: [
     { label: "Browse Jobs", href: "/jobs" },

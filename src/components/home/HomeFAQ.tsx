@@ -27,6 +27,14 @@ const faqs = [
     q: "What payment methods are accepted?",
     a: "We accept UPI, credit/debit cards, net banking, and wallets through Razorpay's secure payment gateway.",
   },
+  {
+    q: "Why is there a fee to apply?",
+    a: "The fee is a one-time processing charge for that application. It covers receiving your form, storing your resume, and forwarding the application. It does not buy a job or an interview. The full explanation is on the Why we charge page.",
+  },
+  {
+    q: "Where is my data stored?",
+    a: "Your account and application records are stored in our cloud database. Resumes and photos are stored in cloud file storage. Card and UPI details stay with Razorpay. We do not sell your data. See the Privacy Policy for the full list.",
+  },
 ];
 
 export function HomeFAQ() {

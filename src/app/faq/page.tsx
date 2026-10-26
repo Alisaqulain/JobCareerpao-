@@ -52,8 +52,12 @@ const faqSections = [
         a: "No. Each user can submit one paid application per job. Check your profile for existing applications.",
       },
       {
+        q: "Why do you charge money to apply?",
+        a: "The fee is a one-time processing charge for that application. It pays for receiving your form, storing your resume and answers, creating an application number, and placing the application with our hiring team for that employer. It does not guarantee a job or an interview. The amount is shown before you pay. Read Why we charge for the full explanation.",
+      },
+      {
         q: "Are application fees refundable?",
-        a: "Application fees are generally non-refundable once submitted. See our Refund Policy for exceptions.",
+        a: "A fee is refunded if payment was taken but the application was not created, if you were charged twice, or if we withdrew the job before review and you ask within 7 days. It is not refunded only because you were not selected. See the Refund Policy.",
       },
     ],
   },
@@ -62,7 +66,11 @@ const faqSections = [
     items: [
       {
         q: "What file formats are accepted for resumes?",
-        a: "PDF, DOC, and DOCX up to 5 MB. Resumes are stored securely on Cloudinary — only the URL is saved in your profile.",
+        a: "PDF, DOC, and DOCX up to 5 MB. The file is stored in cloud file storage. Your account record keeps the link to that file.",
+      },
+      {
+        q: "Where do you store my data, and how do you use it?",
+        a: "Account, application, and payment references are stored in our cloud database (MongoDB Atlas). Resumes and photos are stored with Cloudinary. Card and UPI details are handled by Razorpay and are not saved on our servers. We use your details to run your account, process the job you applied for, send confirmation, and support you. We share an application with our hiring team and the employer for that job. We do not sell personal data. The Privacy Policy has the full account.",
       },
       {
         q: "Do I need a complete profile before applying?",
@@ -80,6 +88,10 @@ const faqSections = [
       {
         q: "How do I contact support?",
         a: "Email support@jobcareerpao.com or use the Contact page. We respond within 24 hours on business days.",
+      },
+      {
+        q: "Where are the legal terms?",
+        a: "The Legal page links to the Terms of Service, why we charge, privacy and data storage, refunds, cookies, the disclaimer, and grievance redressal. Creating an account includes agreeing to those terms.",
       },
     ],
   },
@@ -126,6 +138,31 @@ export default function FaqPage() {
             </div>
           </section>
         ))}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="font-display text-xl font-bold text-brand-dark">Legal documents</h2>
+          <p className="mt-2 text-sm text-brand-slate">
+            Fees, data storage, refunds, and the full terms are written out on these pages.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              ["/legal", "All policies"],
+              ["/fees", "Why we charge"],
+              ["/privacy", "Privacy & data"],
+              ["/terms", "Terms"],
+              ["/refund", "Refunds"],
+              ["/grievance", "Grievance"],
+            ].map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-brand-blue hover:bg-slate-200"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
 
         <div className="rounded-2xl bg-gradient-to-br from-brand-blue to-brand-cyan p-8 text-center text-white">
           <h2 className="font-display text-xl font-bold">Still have questions?</h2>

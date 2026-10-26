@@ -7,6 +7,7 @@ import { Pencil, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { FeeBreakdown } from "@/components/payment/FeeBreakdown";
+import { FeeNotice } from "@/components/legal/FeeNotice";
 import { DynamicApplicationForm } from "@/components/payment/DynamicApplicationForm";
 import { api } from "@/hooks/useApi";
 import { getJobLogoProps } from "@/lib/job-utils";
@@ -131,8 +132,9 @@ export default function ApplicationReviewPage() {
             </div>
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 space-y-3">
             <FeeBreakdown applicationFee={job.applicationFee} />
+            <FeeNotice />
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">

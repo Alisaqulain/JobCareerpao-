@@ -19,9 +19,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.75 },
     { url: `${base}/careers`, lastModified: now, changeFrequency: "monthly", priority: 0.65 },
+    { url: `${base}/legal`, lastModified: now, changeFrequency: "yearly", priority: 0.35 },
     { url: `${base}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/fees`, lastModified: now, changeFrequency: "yearly", priority: 0.35 },
     { url: `${base}/refund`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/cookies`, lastModified: now, changeFrequency: "yearly", priority: 0.25 },
+    { url: `${base}/disclaimer`, lastModified: now, changeFrequency: "yearly", priority: 0.25 },
+    { url: `${base}/grievance`, lastModified: now, changeFrequency: "yearly", priority: 0.25 },
   ];
 
   try {

@@ -99,11 +99,15 @@ export default function CandidateSignupPage() {
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
         />
-        <label className="flex items-start gap-2 text-xs text-brand-slate">
+        <label className="flex items-start gap-2 text-xs leading-relaxed text-brand-slate">
           <input type="checkbox" required className="mt-0.5 rounded border-slate-300" />
-          I agree to the{" "}
-          <AuthLink href="/terms">Terms</AuthLink> and{" "}
-          <AuthLink href="/privacy">Privacy Policy</AuthLink>
+          <span>
+            I agree to the <AuthLink href="/terms">Terms</AuthLink>,{" "}
+            <AuthLink href="/privacy">Privacy Policy</AuthLink>,{" "}
+            <AuthLink href="/fees">application fee terms</AuthLink>, and{" "}
+            <AuthLink href="/refund">Refund Policy</AuthLink>. I understand the fee processes
+            my application and does not guarantee a job.
+          </span>
         </label>
         <Button type="submit" className="w-full" size="lg" disabled={loading}>
           {loading ? "Sending OTP..." : "Create Account"}

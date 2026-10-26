@@ -126,6 +126,10 @@ export default function JobDetailContent({ initialJob, initialRelated = [] }: Jo
             <div className="rounded-xl bg-brand-gray dark:bg-slate-800 p-4">
               <p className="text-xs text-brand-slate">Application Fee</p>
               <p className="font-medium dark:text-white">₹{job.applicationFee}</p>
+              <p className="mt-1 text-xs text-brand-slate">
+                One-time processing fee. It does not guarantee a job.{" "}
+                <Link href="/fees" className="font-semibold text-brand-blue">Why we charge</Link>
+              </p>
             </div>
           </div>
 
